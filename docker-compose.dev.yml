@@ -1,0 +1,47 @@
+name: splitly-dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-splitly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-splitly}
+      POSTGRES_DB: ${POSTGRES_DB:-splitly}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - splitly_dev_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-splitly}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    working_dir: /app
+    command: sh -c "npm install && npx prisma migrate deploy && npm run dev"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - splitly_dev_node_modules:/app/node_modules
+      - splitly_dev_next:/app/.next
+
+volumes:
+  splitly_dev_db_data:
+  splitly_dev_node_modules:
+  splitly_dev_next:
