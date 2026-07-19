@@ -11,6 +11,7 @@ interface Member {
   name: string;
   email: string;
   role: "ADMIN" | "MEMBER";
+  isPlaceholder: boolean;
   defaultSplitPercent: number;
 }
 
@@ -32,6 +33,11 @@ export function HouseholdSetup({
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localMembers, setLocalMembers] = useState<Member[]>(members);
+  const [guestName, setGuestName] = useState("");
+  const [addingGuest, setAddingGuest] = useState(false);
+  const [guestError, setGuestError] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   const total = useMemo(
     () => Object.values(percents).reduce((sum, p) => sum + (Number.isFinite(p) ? p : 0), 0),
@@ -73,6 +79,48 @@ export function HouseholdSetup({
     router.push(`/households/${household.id}/dashboard`);
   }
 
+  async function handleAddGuest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!guestName.trim()) return;
+    setAddingGuest(true);
+    setGuestError(null);
+    const res = await fetch(`/api/households/${household.id}/members/guests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: guestName.trim() }),
+    });
+    setAddingGuest(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setGuestError(typeof data.error === "string" ? data.error : t(locale, "householdSetup.addGuestError"));
+      return;
+    }
+    const data = await res.json();
+    setLocalMembers((prev) => [
+      ...prev,
+      {
+        userId: data.member.userId,
+        name: data.member.name,
+        email: data.member.email,
+        role: "MEMBER" as const,
+        isPlaceholder: true,
+        defaultSplitPercent: 0,
+      },
+    ]);
+    setGuestName("");
+    router.refresh();
+  }
+
+  async function handleRemoveGuest(userId: string) {
+    setRemovingUserId(userId);
+    const res = await fetch(`/api/households/${household.id}/members/${userId}`, { method: "DELETE" });
+    setRemovingUserId(null);
+    if (res.ok) {
+      setLocalMembers((prev) => prev.filter((m) => m.userId !== userId));
+      router.refresh();
+    }
+  }
+
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
       <Link href="/households" className="text-sm text-slate-500 hover:text-slate-700">
@@ -97,6 +145,63 @@ export function HouseholdSetup({
           </button>
         </div>
       </div>
+
+      {household.householdType === "EVENT" && (
+        <div className="card mb-6">
+          <p className="label">{t(locale, "householdSetup.guestsTitle")}</p>
+          <p className="mb-3 text-sm text-slate-500">{t(locale, "householdSetup.guestsDesc")}</p>
+          <div className="space-y-3">
+            {localMembers.map((m) => (
+              <div key={m.userId} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-900">
+                    {m.name}{" "}
+                    {m.isPlaceholder && (
+                      <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                        {t(locale, "common.guestBadge")}
+                      </span>
+                    )}{" "}
+                    {m.userId === currentUserId && (
+                      <span className="text-slate-400">{t(locale, "householdSetup.you")}</span>
+                    )}
+                  </p>
+                  {!m.isPlaceholder && <p className="truncate text-xs text-slate-400">{m.email}</p>}
+                </div>
+                {m.isPlaceholder && currentUserIsAdmin && (
+                  <button
+                    onClick={() => handleRemoveGuest(m.userId)}
+                    disabled={removingUserId === m.userId}
+                    className="flex-none text-xs font-medium text-negative-600 hover:text-negative-700"
+                  >
+                    {t(locale, "householdSetup.removeGuest")}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {currentUserIsAdmin && (
+            <form onSubmit={handleAddGuest} className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-4">
+              <input
+                type="text"
+                placeholder={t(locale, "householdSetup.guestNamePlaceholder")}
+                className="input flex-1"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                maxLength={100}
+              />
+              <button
+                type="submit"
+                disabled={addingGuest || !guestName.trim()}
+                className="btn-secondary flex-none"
+              >
+                {addingGuest ? t(locale, "householdSetup.addingGuest") : t(locale, "householdSetup.addGuestButton")}
+              </button>
+            </form>
+          )}
+          {guestError && <p className="mt-2 text-sm text-negative-600">{guestError}</p>}
+        </div>
+      )}
 
       {household.householdType === "RECURRING" && (
         <div className="card mb-6">

@@ -10,6 +10,7 @@ import { t } from "@/lib/i18n/t";
 interface NetPositionVM {
   userId: string;
   name: string;
+  isPlaceholder?: boolean;
   netBalance: number;
 }
 
@@ -99,7 +100,9 @@ export function SettleUpView({
         {netPositions.map((p) => (
           <div key={p.userId} className="card flex items-center justify-between py-3">
             <span className="text-sm text-slate-900">
-              {p.name} {p.userId === currentUserId && <span className="text-slate-400">{t(locale, "settleUp.you")}</span>}
+              {p.name}{" "}
+              {p.isPlaceholder && <span className="text-xs text-slate-400">({t(locale, "common.guestBadge")})</span>}{" "}
+              {p.userId === currentUserId && <span className="text-slate-400">{t(locale, "settleUp.you")}</span>}
             </span>
             <span
               className={clsx(

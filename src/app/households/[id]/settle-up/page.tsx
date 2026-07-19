@@ -17,9 +17,10 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
 
   const members = await prisma.householdMember.findMany({
     where: { householdId: params.id, leftAt: null },
-    include: { user: { select: { id: true, name: true } } },
+    include: { user: { select: { id: true, name: true, isPlaceholder: true } } },
   });
   const nameById = Object.fromEntries(members.map((m) => [m.userId, m.user.name]));
+  const isPlaceholderById = Object.fromEntries(members.map((m) => [m.userId, m.user.isPlaceholder]));
 
   const { netPositions, transactions } = await getHouseholdBalances(params.id);
 
@@ -29,7 +30,11 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
       currentUserId={session.user.id}
       currency={household.currency}
       locale={session.user.locale}
-      netPositions={netPositions.map((p) => ({ ...p, name: nameById[p.userId] ?? "Unknown" }))}
+      netPositions={netPositions.map((p) => ({
+        ...p,
+        name: nameById[p.userId] ?? "Unknown",
+        isPlaceholder: isPlaceholderById[p.userId] ?? false,
+      }))}
       transactions={transactions.map((tx) => ({
         ...tx,
         fromName: nameById[tx.fromUserId] ?? "Unknown",

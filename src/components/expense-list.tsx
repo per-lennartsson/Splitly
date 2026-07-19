@@ -18,6 +18,7 @@ export interface ExpenseVM {
   categoryName: string | null;
   categoryColor: string | null;
   paidByName: string;
+  paidByIsPlaceholder?: boolean;
   date: string;
   projected: boolean;
 }
@@ -184,7 +185,9 @@ export function ExpenseList({
               <ExpenseRow
                 key={e.id}
                 title={e.title}
-                meta={`${e.date} · ${t(locale, "expenseList.paidBy", { name: e.paidByName })}`}
+                meta={`${e.date} · ${t(locale, "expenseList.paidBy", { name: e.paidByName })}${
+                  e.paidByIsPlaceholder ? ` (${t(locale, "common.guestBadge")})` : ""
+                }`}
                 amount={money(e.amount)}
                 categoryName={e.categoryName}
                 categoryColor={e.categoryColor}
@@ -208,7 +211,9 @@ export function ExpenseList({
               <ExpenseRow
                 key={e.id}
                 title={e.title}
-                meta={`${e.date} · ${t(locale, "expenseList.paidBy", { name: e.paidByName })}`}
+                meta={`${e.date} · ${t(locale, "expenseList.paidBy", { name: e.paidByName })}${
+                  e.paidByIsPlaceholder ? ` (${t(locale, "common.guestBadge")})` : ""
+                }`}
                 amount={money(e.amount)}
                 categoryName={e.categoryName}
                 categoryColor={e.categoryColor}

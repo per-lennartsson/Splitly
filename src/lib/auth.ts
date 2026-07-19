@@ -23,6 +23,7 @@ export const authOptions: AuthOptions = {
           where: { email: credentials.email.toLowerCase() },
         });
         if (!user) return null;
+        if (user.isPlaceholder) return null;
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;

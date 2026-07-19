@@ -20,7 +20,7 @@ export default async function EditExpensePage({
     include: {
       members: {
         where: { leftAt: null },
-        include: { user: { select: { id: true, name: true } } },
+        include: { user: { select: { id: true, name: true, isPlaceholder: true } } },
         orderBy: { joinedAt: "asc" },
       },
       categories: { orderBy: { name: "asc" } },
@@ -48,6 +48,7 @@ export default async function EditExpensePage({
           userId: m.userId,
           name: m.user.name,
           defaultSplitPercent: m.defaultSplitPercent ? Number(m.defaultSplitPercent) : null,
+          isPlaceholder: m.user.isPlaceholder,
         }))}
         categories={household.categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
         currency={household.currency}

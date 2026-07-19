@@ -29,6 +29,7 @@ const en = {
     back: "Back",
     optional: "Optional",
     none: "None",
+    guestBadge: "Guest",
   },
   auth: {
     login: {
@@ -103,6 +104,13 @@ const en = {
     skipForNow: "Skip for now",
     goToGroup: "Go to group",
     genericError: "Could not save split percentages.",
+    guestsTitle: "Guests",
+    guestsDesc: "Add people who won't join the app but still take part in the split.",
+    guestNamePlaceholder: "Guest's name",
+    addGuestButton: "Add guest",
+    addingGuest: "Adding...",
+    removeGuest: "Remove",
+    addGuestError: "Could not add guest.",
   },
   joinHousehold: {
     title: "Join a household",
@@ -274,6 +282,7 @@ const sv: typeof en = {
     back: "Tillbaka",
     optional: "Valfritt",
     none: "Ingen",
+    guestBadge: "Gäst",
   },
   auth: {
     login: {
@@ -348,6 +357,13 @@ const sv: typeof en = {
     skipForNow: "Hoppa över för nu",
     goToGroup: "Gå till gruppen",
     genericError: "Kunde inte spara fördelningen.",
+    guestsTitle: "Gäster",
+    guestsDesc: "Lägg till personer som inte går med i appen men ändå ska ingå i fördelningen.",
+    guestNamePlaceholder: "Gästens namn",
+    addGuestButton: "Lägg till gäst",
+    addingGuest: "Lägger till...",
+    removeGuest: "Ta bort",
+    addGuestError: "Kunde inte lägga till gäst.",
   },
   joinHousehold: {
     title: "Gå med i ett hushåll",

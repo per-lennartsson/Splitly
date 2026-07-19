@@ -14,7 +14,7 @@ export default async function HouseholdSetupPage({ params: paramsPromise }: { pa
     include: {
       members: {
         where: { leftAt: null },
-        include: { user: { select: { id: true, name: true, email: true } } },
+        include: { user: { select: { id: true, name: true, email: true, isPlaceholder: true } } },
         orderBy: { joinedAt: "asc" },
       },
     },
@@ -27,6 +27,7 @@ export default async function HouseholdSetupPage({ params: paramsPromise }: { pa
     name: m.user.name,
     email: m.user.email,
     role: m.role,
+    isPlaceholder: m.user.isPlaceholder,
     defaultSplitPercent: m.defaultSplitPercent ? Number(m.defaultSplitPercent) : 0,
   }));
 

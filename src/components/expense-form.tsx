@@ -11,6 +11,7 @@ export interface MemberOption {
   userId: string;
   name: string;
   defaultSplitPercent: number | null;
+  isPlaceholder?: boolean;
 }
 
 export interface CategoryOption {
@@ -220,7 +221,7 @@ export function ExpenseForm({
           <select id="paidBy" className="input" value={paidBy} onChange={(e) => setPaidBy(e.target.value)}>
             {members.map((m) => (
               <option key={m.userId} value={m.userId}>
-                {m.name}
+                {m.isPlaceholder ? `${m.name} (${t(locale, "common.guestBadge")})` : m.name}
               </option>
             ))}
           </select>
@@ -262,7 +263,14 @@ export function ExpenseForm({
                   onChange={() => toggleMember(m.userId)}
                   className="h-4 w-4 rounded border-slate-300 text-brand-600"
                 />
-                <span className="flex-1 truncate text-sm text-slate-900">{m.name}</span>
+                <span className="flex-1 truncate text-sm text-slate-900">
+                  {m.name}
+                  {m.isPlaceholder && (
+                    <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                      {t(locale, "common.guestBadge")}
+                    </span>
+                  )}
+                </span>
                 {splitType === "PERCENT" ? (
                   <div className="flex items-center gap-1">
                     <input

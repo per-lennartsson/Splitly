@@ -22,7 +22,7 @@ export default async function HouseholdLayout({
         include: {
           members: {
             where: { leftAt: null },
-            include: { user: { select: { id: true, name: true } } },
+            include: { user: { select: { id: true, name: true, isPlaceholder: true } } },
             orderBy: { joinedAt: "asc" },
           },
           categories: { orderBy: { name: "asc" } },
@@ -41,7 +41,11 @@ export default async function HouseholdLayout({
         householdType={membership.household.householdType}
         currency={membership.household.currency}
         locale={session.user.locale}
-        members={membership.household.members.map((m) => ({ userId: m.userId, name: m.user.name }))}
+        members={membership.household.members.map((m) => ({
+          userId: m.userId,
+          name: m.user.name,
+          isPlaceholder: m.user.isPlaceholder,
+        }))}
         categories={membership.household.categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
       />
       <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>

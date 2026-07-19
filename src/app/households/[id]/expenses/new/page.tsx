@@ -16,7 +16,7 @@ export default async function NewExpensePage({ params: paramsPromise }: { params
     include: {
       members: {
         where: { leftAt: null },
-        include: { user: { select: { id: true, name: true } } },
+        include: { user: { select: { id: true, name: true, isPlaceholder: true } } },
         orderBy: { joinedAt: "asc" },
       },
       categories: { orderBy: { name: "asc" } },
@@ -38,6 +38,7 @@ export default async function NewExpensePage({ params: paramsPromise }: { params
           userId: m.userId,
           name: m.user.name,
           defaultSplitPercent: m.defaultSplitPercent ? Number(m.defaultSplitPercent) : null,
+          isPlaceholder: m.user.isPlaceholder,
         }))}
         categories={household.categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
         currency={household.currency}

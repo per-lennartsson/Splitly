@@ -33,12 +33,13 @@ enum CurrencyCode {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  name         String
-  locale       Locale   @default(en)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  name          String
+  locale        Locale   @default(en)
+  isPlaceholder Boolean  @default(false) @map("is_placeholder")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   memberships       HouseholdMember[]
   createdHouseholds Household[]         @relation("HouseholdCreator")

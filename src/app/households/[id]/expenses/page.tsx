@@ -96,7 +96,7 @@ export default async function ExpensesPage({
   } else {
     const actual = await prisma.expense.findMany({
       where: { householdId: params.id, deletedAt: null },
-      include: { category: true, payer: { select: { name: true } } },
+      include: { category: true, payer: { select: { name: true, isPlaceholder: true } } },
       orderBy: { date: "desc" },
     });
     expenseVMs = actual.map((e) => ({
@@ -107,6 +107,7 @@ export default async function ExpensesPage({
       categoryName: e.category?.name ?? null,
       categoryColor: e.category?.color ?? null,
       paidByName: e.payer.name,
+      paidByIsPlaceholder: e.payer.isPlaceholder,
       date: e.date.toISOString().slice(0, 10),
       projected: false,
     }));

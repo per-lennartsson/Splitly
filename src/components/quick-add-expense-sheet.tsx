@@ -11,6 +11,7 @@ import { t } from "@/lib/i18n/t";
 export interface QuickAddMember {
   userId: string;
   name: string;
+  isPlaceholder?: boolean;
 }
 
 export interface QuickAddCategory {
@@ -160,6 +161,11 @@ export function QuickAddExpenseSheet({
                     {m.name.slice(0, 1).toUpperCase()}
                   </span>
                   {m.name}
+                  {m.isPlaceholder && (
+                    <span className="text-[10px] font-normal text-slate-400">
+                      ({t(locale, "common.guestBadge")})
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
