@@ -48,9 +48,12 @@ export async function POST(req: Request) {
   }
 
   let inviteCode = generateInviteCode();
-  for (let attempts = 0; attempts < 5; attempts++) {
-    const existing = await prisma.household.findUnique({ where: { inviteCode } });
-    if (!existing) break;
+  let attempts = 0;
+  while (await prisma.household.findUnique({ where: { inviteCode } })) {
+    attempts++;
+    if (attempts >= 5) {
+      return NextResponse.json({ error: "Could not generate a unique invite code. Please try again." }, { status: 500 });
+    }
     inviteCode = generateInviteCode();
   }
 
