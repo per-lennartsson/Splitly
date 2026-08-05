@@ -15,8 +15,11 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
   });
   if (!household) redirect("/households");
 
+  // Not scoped to active membership (no `leftAt: null`): balances include
+  // historical splits from members who've since left, and their name must
+  // still resolve rather than falling back to "Unknown".
   const members = await prisma.householdMember.findMany({
-    where: { householdId: params.id, leftAt: null },
+    where: { householdId: params.id },
     include: { user: { select: { id: true, name: true, isPlaceholder: true } } },
   });
   const nameById = Object.fromEntries(members.map((m) => [m.userId, m.user.name]));

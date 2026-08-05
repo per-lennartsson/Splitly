@@ -53,10 +53,13 @@ export default async function ExpensesPage({
     const showProjections = isSameOrFutureMonth(year, monthIndex0, now.getFullYear(), now.getMonth());
     const projected = showProjections ? await getProjectedExpenses(params.id, year, monthIndex0) : [];
 
+    // Not scoped to active membership: a projected expense can still be tied
+    // to a template's payer after they've left, and their name must still
+    // resolve rather than falling back to "Unknown".
     const memberNames = Object.fromEntries(
       (
         await prisma.householdMember.findMany({
-          where: { householdId: params.id, leftAt: null },
+          where: { householdId: params.id },
           include: { user: { select: { name: true } } },
         })
       ).map((m) => [m.userId, m.user.name])
