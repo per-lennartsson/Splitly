@@ -10,6 +10,11 @@ import { intlLocale, type Locale } from "@/lib/i18n/translations";
 import { t } from "@/lib/i18n/t";
 import { ExpenseRow } from "@/components/expense-row";
 
+export interface ExpenseSplitVM {
+  name: string;
+  amount: number;
+}
+
 export interface ExpenseVM {
   id: string;
   title: string;
@@ -21,6 +26,7 @@ export interface ExpenseVM {
   paidByIsPlaceholder?: boolean;
   date: string;
   projected: boolean;
+  splits: ExpenseSplitVM[];
 }
 
 export interface CategoryOption {
@@ -80,6 +86,8 @@ export function ExpenseList({
 
   const grandTotal = totalsByCategory.reduce((sum, c) => sum + c.total, 0);
   const runningTotal = expenses.filter((e) => !e.projected).reduce((sum, e) => sum + e.amount, 0);
+  const scheduledTotal = scheduled.reduce((sum, e) => sum + e.amount, 0);
+  const estimatedTotal = runningTotal + scheduledTotal;
 
   async function handleDelete(id: string) {
     if (!confirm(t(locale, "expenseList.deleteConfirm"))) return;
@@ -116,10 +124,18 @@ export function ExpenseList({
                   ›
                 </Link>
               </div>
-              <p className="text-sm text-slate-500">
-                {t(locale, "expenseList.actualTotal")}{" "}
-                <span className="text-[17px] font-bold tabular-nums text-slate-900">{money(runningTotal)}</span>
-              </p>
+              <div className="text-right">
+                <p className="text-sm text-slate-500">
+                  {t(locale, "expenseList.actualTotal")}{" "}
+                  <span className="text-[17px] font-bold tabular-nums text-slate-900">{money(runningTotal)}</span>
+                </p>
+                {scheduled.length > 0 && (
+                  <p className="text-xs text-slate-400">
+                    {t(locale, "expenseList.estimatedTotal")}{" "}
+                    <span className="font-semibold tabular-nums text-slate-600">{money(estimatedTotal)}</span>
+                  </p>
+                )}
+              </div>
             </div>
           );
         })()
@@ -191,6 +207,7 @@ export function ExpenseList({
                 amount={money(e.amount)}
                 categoryName={e.categoryName}
                 categoryColor={e.categoryColor}
+                splits={e.splits.map((s) => ({ name: s.name, amount: money(s.amount) }))}
                 projected
                 locale={locale}
               />
@@ -217,6 +234,7 @@ export function ExpenseList({
                 amount={money(e.amount)}
                 categoryName={e.categoryName}
                 categoryColor={e.categoryColor}
+                splits={e.splits.map((s) => ({ name: s.name, amount: money(s.amount) }))}
                 editHref={`/households/${householdId}/expenses/${e.id}/edit`}
                 onDelete={() => handleDelete(e.id)}
                 deleteBusy={busyId === e.id}

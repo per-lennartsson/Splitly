@@ -13,12 +13,18 @@ function abbreviate(label: string): string {
   return label.trim().slice(0, 2).toUpperCase();
 }
 
+export interface SplitShareVM {
+  name: string;
+  amount: string;
+}
+
 export function ExpenseRow({
   title,
   meta,
   amount,
   categoryName,
   categoryColor,
+  splits,
   projected = false,
   editHref,
   onDelete,
@@ -30,6 +36,7 @@ export function ExpenseRow({
   amount: string;
   categoryName: string | null;
   categoryColor: string | null;
+  splits?: SplitShareVM[];
   projected?: boolean;
   editHref?: string;
   onDelete?: () => void;
@@ -54,6 +61,15 @@ export function ExpenseRow({
           {projected && <span className="badge-scheduled ml-2 align-middle">{t(locale, "expenseList.scheduled")}</span>}
         </p>
         <p className="mt-0.5 truncate text-xs text-slate-400">{meta}</p>
+        {splits && splits.length > 1 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {splits.map((s, i) => (
+              <span key={i} className="split-chip">
+                {s.name} {s.amount}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <span className={clsx("flex-none text-sm font-semibold tabular-nums", projected ? "text-slate-400" : "text-slate-900")}>
         {amount}

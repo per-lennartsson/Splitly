@@ -44,7 +44,11 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
   const [recentExpenses, monthTotalAgg, { netPositions }, categories, spendByCategory, projected] = await Promise.all([
     prisma.expense.findMany({
       where: { householdId: params.id, deletedAt: null },
-      include: { payer: { select: { name: true } }, category: true },
+      include: {
+        payer: { select: { name: true } },
+        category: true,
+        splits: { include: { user: { select: { name: true } } } },
+      },
       orderBy: { date: "desc" },
       take: 5,
     }),
@@ -73,6 +77,8 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
 
   const myPosition = netPositions.find((p) => p.userId === session.user.id);
   const monthTotal = Number(monthTotalAgg._sum.amount ?? 0);
+  const projectedTotal = projected.reduce((sum, e) => sum + e.amount, 0);
+  const estimatedMonthTotal = monthTotal + projectedTotal;
   const money = (n: number) => formatMoney(n, household.currency, intlLocale(locale));
   const balance = myPosition?.netBalance ?? 0;
 
@@ -108,6 +114,12 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
                 t(locale, "dashboard.spentSoFar")
               )}
             </p>
+            {isRecurring && projected.length > 0 && (
+              <p className="mt-1.5 text-[13px] text-brand-300">
+                {t(locale, "dashboard.estimatedTotal")}{" "}
+                <span className="font-semibold text-white">{money(estimatedMonthTotal)}</span>
+              </p>
+            )}
           </div>
           <div className="flex min-w-[180px] flex-col justify-center gap-1.5">
             <p className="text-[13px] text-brand-300">{t(locale, "dashboard.yourBalance")}</p>
@@ -189,6 +201,9 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
                 amount={money(Number(e.amount))}
                 categoryName={e.category?.name ?? null}
                 categoryColor={e.category?.color ?? null}
+                splits={[...e.splits]
+                  .sort((a, b) => Number(b.amountOwed) - Number(a.amountOwed))
+                  .map((s) => ({ name: s.user.name, amount: money(Number(s.amountOwed)) }))}
                 locale={locale}
               />
             ))}

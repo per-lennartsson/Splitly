@@ -46,7 +46,11 @@ export default async function ExpensesPage({
 
     const actual = await prisma.expense.findMany({
       where: { householdId: params.id, deletedAt: null, date: { gte: monthStart, lt: monthEnd } },
-      include: { category: true, payer: { select: { name: true } } },
+      include: {
+        category: true,
+        payer: { select: { name: true } },
+        splits: { include: { user: { select: { name: true } } } },
+      },
       orderBy: { date: "desc" },
     });
 
@@ -77,6 +81,9 @@ export default async function ExpensesPage({
         paidByName: e.payer.name,
         date: e.date.toISOString().slice(0, 10),
         projected: false,
+        splits: e.splits
+          .map((s) => ({ name: s.user.name, amount: Number(s.amountOwed) }))
+          .sort((a, b) => b.amount - a.amount),
       })),
       ...projected.map((e) => ({
         id: e.id,
@@ -88,6 +95,9 @@ export default async function ExpensesPage({
         paidByName: memberNames[e.paidBy] ?? "Unknown",
         date: e.date.toISOString().slice(0, 10),
         projected: true,
+        splits: e.splits
+          .map((s) => ({ name: memberNames[s.userId] ?? "Unknown", amount: s.amountOwed }))
+          .sort((a, b) => b.amount - a.amount),
       })),
     ].sort((a, b) => (a.date < b.date ? 1 : -1));
 
@@ -99,7 +109,11 @@ export default async function ExpensesPage({
   } else {
     const actual = await prisma.expense.findMany({
       where: { householdId: params.id, deletedAt: null },
-      include: { category: true, payer: { select: { name: true, isPlaceholder: true } } },
+      include: {
+        category: true,
+        payer: { select: { name: true, isPlaceholder: true } },
+        splits: { include: { user: { select: { name: true } } } },
+      },
       orderBy: { date: "desc" },
     });
     expenseVMs = actual.map((e) => ({
@@ -113,6 +127,9 @@ export default async function ExpensesPage({
       paidByIsPlaceholder: e.payer.isPlaceholder,
       date: e.date.toISOString().slice(0, 10),
       projected: false,
+      splits: e.splits
+        .map((s) => ({ name: s.user.name, amount: Number(s.amountOwed) }))
+        .sort((a, b) => b.amount - a.amount),
     }));
   }
 
