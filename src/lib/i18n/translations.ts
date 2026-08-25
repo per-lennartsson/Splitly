@@ -266,6 +266,10 @@ const en = {
     confirmPayment: "Confirm payment",
     cancel: "Cancel",
     invalidAmount: "Enter an amount greater than zero.",
+    history: "Payment history",
+    noHistory: "No payments recorded yet.",
+    paid: "{from} paid {to}",
+    forExpenses: "For: {items}",
   },
   account: {
     title: "Account settings",
@@ -526,6 +530,10 @@ const sv: typeof en = {
     confirmPayment: "Bekräfta betalning",
     cancel: "Avbryt",
     invalidAmount: "Ange ett belopp större än noll.",
+    history: "Betalningshistorik",
+    noHistory: "Inga betalningar registrerade än.",
+    paid: "{from} betalade {to}",
+    forExpenses: "Gäller: {items}",
   },
   account: {
     title: "Kontoinställningar",

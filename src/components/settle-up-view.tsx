@@ -30,6 +30,15 @@ interface ExpenseVM {
   splits: { userId: string; amountOwed: number }[];
 }
 
+interface SettlementHistoryVM {
+  id: string;
+  fromName: string;
+  toName: string;
+  amount: number;
+  date: string;
+  expenseTitles: string[];
+}
+
 function txKey(tx: { fromUserId: string; toUserId: string }) {
   return `${tx.fromUserId}-${tx.toUserId}`;
 }
@@ -42,6 +51,7 @@ export function SettleUpView({
   netPositions,
   transactions,
   expenses,
+  settlementHistory,
 }: {
   householdId: string;
   currentUserId: string;
@@ -50,6 +60,7 @@ export function SettleUpView({
   netPositions: NetPositionVM[];
   transactions: TransactionVM[];
   expenses: ExpenseVM[];
+  settlementHistory: SettlementHistoryVM[];
 }) {
   const router = useRouter();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -74,8 +85,11 @@ export function SettleUpView({
   function openPanel(tx: TransactionVM) {
     const key = txKey(tx);
     setExpandedKey(key);
-    setAmountDrafts((prev) => ({ ...prev, [key]: prev[key] ?? tx.amount.toFixed(2) }));
-    setSelectedExpenses((prev) => ({ ...prev, [key]: prev[key] ?? new Set() }));
+    // Always start fresh (not from a stale draft left by a prior, already-submitted
+    // payment on this same pair) — both the suggested amount and the covering
+    // expenses list can have changed since the last time this panel was open.
+    setAmountDrafts((prev) => ({ ...prev, [key]: tx.amount.toFixed(2) }));
+    setSelectedExpenses((prev) => ({ ...prev, [key]: new Set() }));
     setError(null);
   }
 
@@ -261,6 +275,32 @@ export function SettleUpView({
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6">
+        <p className="mb-2 text-sm font-medium text-slate-700">{t(locale, "settleUp.history")}</p>
+        {settlementHistory.length === 0 ? (
+          <p className="text-sm text-slate-400">{t(locale, "settleUp.noHistory")}</p>
+        ) : (
+          <div className="space-y-2">
+            {settlementHistory.map((s) => (
+              <div key={s.id} className="card py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-slate-900">{t(locale, "settleUp.paid", { from: s.fromName, to: s.toName })}</p>
+                  <div className="flex flex-none items-center gap-3">
+                    <span className="font-medium text-slate-900">{money(s.amount)}</span>
+                    <span className="text-xs text-slate-400">{s.date}</span>
+                  </div>
+                </div>
+                {s.expenseTitles.length > 0 && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {t(locale, "settleUp.forExpenses", { items: s.expenseTitles.join(", ") })}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -34,6 +34,21 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
     include: { splits: true },
     orderBy: { date: "desc" },
   });
+  // Titles for the payment-history view, looked up regardless of deletedAt so a
+  // settlement's history entry still shows what it was for even if the expense was later deleted.
+  const expenseTitleById = Object.fromEntries(
+    (await prisma.expense.findMany({ where: { householdId: params.id }, select: { id: true, title: true } })).map(
+      (e) => [e.id, e.title]
+    )
+  );
+
+  const settlements = await prisma.settlement.findMany({
+    where: { householdId: params.id },
+    orderBy: { date: "desc" },
+  });
+  // An expense already tagged on a past payment shouldn't be offered again as
+  // something a new payment could cover.
+  const settledExpenseIds = new Set(settlements.flatMap((s) => s.expenseIds));
 
   return (
     <SettleUpView
@@ -51,12 +66,22 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
         fromName: nameById[tx.fromUserId] ?? "Unknown",
         toName: nameById[tx.toUserId] ?? "Unknown",
       }))}
-      expenses={expenses.map((e) => ({
-        id: e.id,
-        title: e.title,
-        date: e.date.toISOString(),
-        paidBy: e.paidBy,
-        splits: e.splits.map((s) => ({ userId: s.userId, amountOwed: Number(s.amountOwed) })),
+      expenses={expenses
+        .filter((e) => !settledExpenseIds.has(e.id))
+        .map((e) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date.toISOString(),
+          paidBy: e.paidBy,
+          splits: e.splits.map((s) => ({ userId: s.userId, amountOwed: Number(s.amountOwed) })),
+        }))}
+      settlementHistory={settlements.map((s) => ({
+        id: s.id,
+        fromName: nameById[s.fromUserId] ?? "Unknown",
+        toName: nameById[s.toUserId] ?? "Unknown",
+        amount: Number(s.amount),
+        date: s.date.toISOString().slice(0, 10),
+        expenseTitles: s.expenseIds.map((id) => expenseTitleById[id]).filter((title): title is string => Boolean(title)),
       }))}
     />
   );
