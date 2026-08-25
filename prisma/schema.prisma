@@ -192,6 +192,7 @@ model Settlement {
   amount      Decimal  @db.Decimal(12, 2)
   date        DateTime @default(now())
   note        String?
+  expenseIds  String[] @default([]) @map("expense_ids")
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   fromUser  User      @relation("SettlementFrom", fields: [fromUserId], references: [id])

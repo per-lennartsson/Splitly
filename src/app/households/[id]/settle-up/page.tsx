@@ -27,6 +27,14 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
 
   const { netPositions, transactions } = await getHouseholdBalances(params.id);
 
+  // Real (non-deleted) expenses with splits, so the settle-up UI can offer
+  // "which expenses does this payment cover" as a way to derive a partial amount.
+  const expenses = await prisma.expense.findMany({
+    where: { householdId: params.id, deletedAt: null },
+    include: { splits: true },
+    orderBy: { date: "desc" },
+  });
+
   return (
     <SettleUpView
       householdId={params.id}
@@ -42,6 +50,13 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
         ...tx,
         fromName: nameById[tx.fromUserId] ?? "Unknown",
         toName: nameById[tx.toUserId] ?? "Unknown",
+      }))}
+      expenses={expenses.map((e) => ({
+        id: e.id,
+        title: e.title,
+        date: e.date.toISOString(),
+        paidBy: e.paidBy,
+        splits: e.splits.map((s) => ({ userId: s.userId, amountOwed: Number(s.amountOwed) })),
       }))}
     />
   );

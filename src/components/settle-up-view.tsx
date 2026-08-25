@@ -22,6 +22,18 @@ interface TransactionVM {
   amount: number;
 }
 
+interface ExpenseVM {
+  id: string;
+  title: string;
+  date: string;
+  paidBy: string;
+  splits: { userId: string; amountOwed: number }[];
+}
+
+function txKey(tx: { fromUserId: string; toUserId: string }) {
+  return `${tx.fromUserId}-${tx.toUserId}`;
+}
+
 export function SettleUpView({
   householdId,
   currentUserId,
@@ -29,6 +41,7 @@ export function SettleUpView({
   locale,
   netPositions,
   transactions,
+  expenses,
 }: {
   householdId: string;
   currentUserId: string;
@@ -36,16 +49,65 @@ export function SettleUpView({
   locale: Locale;
   netPositions: NetPositionVM[];
   transactions: TransactionVM[];
+  expenses: ExpenseVM[];
 }) {
   const router = useRouter();
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
+  const [selectedExpenses, setSelectedExpenses] = useState<Record<string, Set<string>>>({});
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const money = (n: number) => formatMoney(n, currency, intlLocale(locale));
 
   const myPosition = netPositions.find((p) => p.userId === currentUserId);
 
-  async function markSettled(tx: TransactionVM) {
-    const key = `${tx.fromUserId}-${tx.toUserId}`;
+  function shareOwed(expense: ExpenseVM, userId: string) {
+    return expense.splits.find((s) => s.userId === userId)?.amountOwed ?? 0;
+  }
+
+  // Real expenses that toUser paid and fromUser has a split on — i.e. expenses
+  // that make up (some of) this debt, so the user can pick which ones a payment covers.
+  function coveringExpenses(tx: TransactionVM) {
+    return expenses.filter((e) => e.paidBy === tx.toUserId && e.splits.some((s) => s.userId === tx.fromUserId));
+  }
+
+  function openPanel(tx: TransactionVM) {
+    const key = txKey(tx);
+    setExpandedKey(key);
+    setAmountDrafts((prev) => ({ ...prev, [key]: prev[key] ?? tx.amount.toFixed(2) }));
+    setSelectedExpenses((prev) => ({ ...prev, [key]: prev[key] ?? new Set() }));
+    setError(null);
+  }
+
+  function toggleExpense(tx: TransactionVM, expenseId: string) {
+    const key = txKey(tx);
+    setSelectedExpenses((prev) => {
+      const current = new Set(prev[key] ?? []);
+      if (current.has(expenseId)) {
+        current.delete(expenseId);
+      } else {
+        current.add(expenseId);
+      }
+
+      const sumCents = coveringExpenses(tx)
+        .filter((e) => current.has(e.id))
+        .reduce((acc, e) => acc + Math.round(shareOwed(e, tx.fromUserId) * 100), 0);
+      if (sumCents > 0) {
+        setAmountDrafts((drafts) => ({ ...drafts, [key]: (sumCents / 100).toFixed(2) }));
+      }
+
+      return { ...prev, [key]: current };
+    });
+  }
+
+  async function submitPayment(tx: TransactionVM) {
+    const key = txKey(tx);
+    const amount = Number(amountDrafts[key] ?? tx.amount.toFixed(2));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError(t(locale, "settleUp.invalidAmount"));
+      return;
+    }
+
     setBusyKey(key);
     setError(null);
     const res = await fetch(`/api/households/${householdId}/settlements`, {
@@ -54,8 +116,9 @@ export function SettleUpView({
       body: JSON.stringify({
         fromUserId: tx.fromUserId,
         toUserId: tx.toUserId,
-        amount: tx.amount,
+        amount,
         note: null,
+        expenseIds: Array.from(selectedExpenses[key] ?? []),
       }),
     });
     setBusyKey(null);
@@ -64,6 +127,7 @@ export function SettleUpView({
       setError(data.error ?? t(locale, "settleUp.genericError"));
       return;
     }
+    setExpandedKey(null);
     router.refresh();
   }
 
@@ -127,20 +191,73 @@ export function SettleUpView({
         ) : (
           <div className="space-y-2">
             {transactions.map((tx) => {
-              const key = `${tx.fromUserId}-${tx.toUserId}`;
+              const key = txKey(tx);
+              const isOpen = expandedKey === key;
+              const covering = coveringExpenses(tx);
+              const selected = selectedExpenses[key] ?? new Set<string>();
+
               return (
-                <div key={key} className="card flex items-center justify-between gap-3">
-                  <p className="text-sm text-slate-900">{t(locale, "settleUp.pays", { from: tx.fromName, to: tx.toName })}</p>
-                  <div className="flex flex-none items-center gap-3">
-                    <span className="font-medium text-slate-900">{money(tx.amount)}</span>
-                    <button
-                      disabled={busyKey === key}
-                      onClick={() => markSettled(tx)}
-                      className="btn-secondary py-1.5"
-                    >
-                      {busyKey === key ? t(locale, "settleUp.saving") : t(locale, "settleUp.markSettled")}
-                    </button>
+                <div key={key} className="card">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-slate-900">{t(locale, "settleUp.pays", { from: tx.fromName, to: tx.toName })}</p>
+                    <div className="flex flex-none items-center gap-3">
+                      <span className="font-medium text-slate-900">{money(tx.amount)}</span>
+                      {!isOpen && (
+                        <button onClick={() => openPanel(tx)} className="btn-secondary py-1.5">
+                          {t(locale, "settleUp.markSettled")}
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {isOpen && (
+                    <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                      <div>
+                        <label className="label" htmlFor={`amount-${key}`}>
+                          {t(locale, "settleUp.amountLabel")}
+                        </label>
+                        <input
+                          id={`amount-${key}`}
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          className="input"
+                          value={amountDrafts[key] ?? tx.amount.toFixed(2)}
+                          onChange={(e) => setAmountDrafts((prev) => ({ ...prev, [key]: e.target.value }))}
+                        />
+                      </div>
+
+                      {covering.length > 0 && (
+                        <div>
+                          <p className="label mb-1.5">{t(locale, "settleUp.selectExpenses")}</p>
+                          <div className="max-h-48 space-y-1.5 overflow-y-auto">
+                            {covering.map((expense) => (
+                              <label key={expense.id} className="flex cursor-pointer items-center justify-between gap-2 text-sm text-slate-700">
+                                <span className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={selected.has(expense.id)}
+                                    onChange={() => toggleExpense(tx, expense.id)}
+                                  />
+                                  {expense.title}
+                                </span>
+                                <span className="text-slate-500">{money(shareOwed(expense, tx.fromUserId))}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button disabled={busyKey === key} onClick={() => submitPayment(tx)} className="btn-primary py-1.5">
+                          {busyKey === key ? t(locale, "settleUp.saving") : t(locale, "settleUp.confirmPayment")}
+                        </button>
+                        <button onClick={() => setExpandedKey(null)} className="btn-secondary py-1.5">
+                          {t(locale, "settleUp.cancel")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
