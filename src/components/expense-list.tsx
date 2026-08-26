@@ -104,39 +104,69 @@ export function ExpenseList({
           const prev = addMonths(monthNav.year, monthNav.monthIndex0, -1);
           const next = addMonths(monthNav.year, monthNav.monthIndex0, 1);
           return (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5">
+            <>
+              {/* Mobile: full-width sticky stepper, totals under the label */}
+              <div className="sticky top-[52px] z-[5] -mx-4 flex items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur sm:hidden">
                 <Link
                   href={`/households/${householdId}/expenses?y=${prev.year}&m=${prev.monthIndex0}`}
                   title={t(locale, "expenseList.prev")}
-                  className="icon-btn h-8 w-8 border border-slate-200 bg-white"
+                  className="icon-btn h-11 w-11 flex-none rounded-2xl bg-slate-100 text-lg"
                 >
                   ‹
                 </Link>
-                <h2 className="min-w-[120px] text-center text-xl font-bold tracking-tight text-slate-900">
-                  {formatMonthLabel(monthNav.year, monthNav.monthIndex0, intlLocale(locale))}
-                </h2>
+                <div className="min-w-0 flex-1 text-center">
+                  <h2 className="text-[17px] font-bold tracking-tight text-slate-900">
+                    {formatMonthLabel(monthNav.year, monthNav.monthIndex0, intlLocale(locale))}
+                  </h2>
+                  <p className="text-[13px] tabular-nums text-slate-500">
+                    {money(runningTotal)}
+                    {scheduled.length > 0 && <span className="text-slate-400"> · {t(locale, "expenseList.estimatedTotal")} {money(estimatedTotal)}</span>}
+                  </p>
+                </div>
                 <Link
                   href={`/households/${householdId}/expenses?y=${next.year}&m=${next.monthIndex0}`}
                   title={t(locale, "expenseList.next")}
-                  className="icon-btn h-8 w-8 border border-slate-200 bg-white"
+                  className="icon-btn h-11 w-11 flex-none rounded-2xl bg-slate-100 text-lg"
                 >
                   ›
                 </Link>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-slate-500">
-                  {t(locale, "expenseList.actualTotal")}{" "}
-                  <span className="text-[17px] font-bold tabular-nums text-slate-900">{money(runningTotal)}</span>
-                </p>
-                {scheduled.length > 0 && (
-                  <p className="text-xs text-slate-400">
-                    {t(locale, "expenseList.estimatedTotal")}{" "}
-                    <span className="font-semibold tabular-nums text-slate-600">{money(estimatedTotal)}</span>
+
+              {/* Desktop: label with arrows, totals in a right-hand block */}
+              <div className="hidden flex-wrap items-center justify-between gap-3 sm:flex">
+                <div className="flex items-center gap-1.5">
+                  <Link
+                    href={`/households/${householdId}/expenses?y=${prev.year}&m=${prev.monthIndex0}`}
+                    title={t(locale, "expenseList.prev")}
+                    className="icon-btn h-8 w-8 border border-slate-200 bg-white"
+                  >
+                    ‹
+                  </Link>
+                  <h2 className="min-w-[120px] text-center text-xl font-bold tracking-tight text-slate-900">
+                    {formatMonthLabel(monthNav.year, monthNav.monthIndex0, intlLocale(locale))}
+                  </h2>
+                  <Link
+                    href={`/households/${householdId}/expenses?y=${next.year}&m=${next.monthIndex0}`}
+                    title={t(locale, "expenseList.next")}
+                    className="icon-btn h-8 w-8 border border-slate-200 bg-white"
+                  >
+                    ›
+                  </Link>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-slate-500">
+                    {t(locale, "expenseList.actualTotal")}{" "}
+                    <span className="text-[17px] font-bold tabular-nums text-slate-900">{money(runningTotal)}</span>
                   </p>
-                )}
+                  {scheduled.length > 0 && (
+                    <p className="text-xs text-slate-400">
+                      {t(locale, "expenseList.estimatedTotal")}{" "}
+                      <span className="font-semibold tabular-nums text-slate-600">{money(estimatedTotal)}</span>
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           );
         })()
       ) : (
@@ -164,11 +194,11 @@ export function ExpenseList({
               />
             ))}
           </div>
-          <div className="mt-3.5 flex flex-wrap gap-2">
+          <div className="scrollx mt-3.5 flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible">
             <button
               type="button"
               onClick={() => setCategoryFilter(null)}
-              className={clsx("pill", categoryFilter === null ? "pill-active" : "pill-inactive")}
+              className={clsx("pill flex-none", categoryFilter === null ? "pill-active" : "pill-inactive")}
             >
               {t(locale, "expenseList.allChip")}
             </button>
@@ -179,7 +209,7 @@ export function ExpenseList({
                   key={c.id}
                   type="button"
                   onClick={() => setCategoryFilter((prev) => (prev === c.id ? null : c.id))}
-                  className={clsx("pill", categoryFilter === c.id ? "pill-active" : "pill-inactive")}
+                  className={clsx("pill flex-none", categoryFilter === c.id ? "pill-active" : "pill-inactive")}
                 >
                   <span className="h-2 w-2 flex-none rounded-full" style={{ backgroundColor: c.color }} />
                   {c.name}

@@ -129,6 +129,10 @@ const en = {
     recurringTab: "Recurring",
     settleUpTab: "Settle Up",
     addExpense: "+ New expense",
+    homeTab: "Home",
+    monthTab: "Month",
+    settleShort: "Settle",
+    more: "More",
   },
   dashboard: {
     title: "Dashboard",
@@ -214,6 +218,7 @@ const en = {
     prev: "← Prev",
     next: "Next →",
     paidBy: "paid by {name}",
+    splitWays: "Split {count} ways",
   },
   recurringForm: {
     addTitle: "Add recurring expense",
@@ -393,6 +398,10 @@ const sv: typeof en = {
     recurringTab: "Återkommande",
     settleUpTab: "Gör upp",
     addExpense: "＋ Ny utgift",
+    homeTab: "Hem",
+    monthTab: "Månad",
+    settleShort: "Gör upp",
+    more: "Mer",
   },
   dashboard: {
     title: "Översikt",
@@ -478,6 +487,7 @@ const sv: typeof en = {
     prev: "← Föregående",
     next: "Nästa →",
     paidBy: "betalat av {name}",
+    splitWays: "Delas på {count}",
   },
   recurringForm: {
     addTitle: "Lägg till återkommande utgift",

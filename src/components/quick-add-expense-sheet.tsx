@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import clsx from "clsx";
@@ -54,6 +54,14 @@ export function QuickAddExpenseSheet({
   const [date, setDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const titleRef = useRef<HTMLInputElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const isMobile = window.matchMedia("(max-width: 639px)").matches;
+    (isMobile ? amountRef.current : titleRef.current)?.focus();
+  }, []);
 
   const amountNum = Number(amount.replace(",", ".")) || 0;
   const shareCount = members.length || 1;
@@ -109,9 +117,9 @@ export function QuickAddExpenseSheet({
     >
       <div
         onClick={stopClick}
-        className="w-full max-w-lg rounded-t-3xl bg-white px-6 pb-7 pt-6 shadow-2xl"
+        className="flex max-h-[88vh] w-full max-w-lg flex-col rounded-t-3xl bg-white shadow-2xl"
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex flex-none items-center justify-between px-6 pb-4 pt-6">
           <h3 className="text-lg font-bold text-slate-900">{t(locale, "quickAdd.title")}</h3>
           <button
             type="button"
@@ -122,10 +130,12 @@ export function QuickAddExpenseSheet({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          <div className="grid grid-cols-[1fr_140px] gap-2.5">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <div className="flex flex-col gap-3.5">
+          <div className="flex flex-col-reverse gap-2.5 sm:grid sm:grid-cols-[1fr_140px]">
             <input
-              autoFocus
+              ref={titleRef}
               required
               placeholder={t(locale, "quickAdd.titlePlaceholder")}
               className="input"
@@ -133,10 +143,11 @@ export function QuickAddExpenseSheet({
               onChange={(e) => setTitle(e.target.value)}
             />
             <input
+              ref={amountRef}
               required
               inputMode="decimal"
               placeholder={`0 ${symbol}`}
-              className="input text-right tabular-nums"
+              className="input text-right tabular-nums sm:text-right"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
@@ -146,13 +157,13 @@ export function QuickAddExpenseSheet({
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
               {t(locale, "quickAdd.paidBy")}
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="scrollx flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible">
               {members.map((m, i) => (
                 <button
                   key={m.userId}
                   type="button"
                   onClick={() => setPayer(m.userId)}
-                  className={clsx("pill py-1 pl-1.5 pr-3.5", payer === m.userId ? "pill-active" : "pill-inactive")}
+                  className={clsx("pill flex-none py-1 pl-1.5 pr-3.5", payer === m.userId ? "pill-active" : "pill-inactive")}
                 >
                   <span
                     className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full text-[11px] font-bold text-white"
@@ -176,13 +187,13 @@ export function QuickAddExpenseSheet({
               <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 {t(locale, "quickAdd.category")}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="scrollx flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible">
                 {categories.map((c) => (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => setCategoryId((prev) => (prev === c.id ? null : c.id))}
-                    className={clsx("pill", categoryId === c.id ? "pill-active" : "pill-inactive")}
+                    className={clsx("pill flex-none", categoryId === c.id ? "pill-active" : "pill-inactive")}
                   >
                     <span className="h-2 w-2 flex-none rounded-full" style={{ backgroundColor: c.color }} />
                     {c.name}
@@ -204,12 +215,24 @@ export function QuickAddExpenseSheet({
 
           {error && <p className="text-sm text-negative-600">{error}</p>}
 
-          <div className="grid grid-cols-[140px_1fr] gap-2.5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[140px_1fr]">
             <input type="date" required className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-            <button type="submit" disabled={saving} className="btn-primary">
+            <button type="submit" disabled={saving} className="btn-primary hidden sm:inline-flex">
               {saving ? t(locale, "expenseForm.submitting") : t(locale, "expenseForm.submitAdd")}
             </button>
           </div>
+          </div>
+        </div>
+
+        <div className="flex-none border-t border-slate-100 px-6 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3 sm:hidden">
+          <button
+            type="submit"
+            disabled={saving}
+            className="btn-primary flex h-[54px] w-full items-center justify-center text-base"
+          >
+            {saving ? t(locale, "expenseForm.submitting") : t(locale, "expenseForm.submitAdd")}
+          </button>
+        </div>
         </form>
       </div>
     </div>

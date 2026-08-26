@@ -57,4 +57,11 @@
   .pill-active {
     @apply border-brand-600 bg-brand-50 text-brand-800;
   }
+  .scrollx {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollx::-webkit-scrollbar {
+    display: none;
+  }
 }

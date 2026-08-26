@@ -34,7 +34,7 @@ export default async function HouseholdLayout({
   if (!membership) redirect("/households");
 
   return (
-    <div className="min-h-screen pb-16 sm:pb-0">
+    <div className="min-h-screen pb-24 sm:pb-0">
       <HouseholdNav
         householdId={id}
         householdName={membership.household.name}
