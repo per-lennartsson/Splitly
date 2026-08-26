@@ -155,6 +155,13 @@ export function QuickAddExpenseSheet({
 
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {t(locale, "quickAdd.date")}
+            </p>
+            <input type="date" required className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
               {t(locale, "quickAdd.paidBy")}
             </p>
             <div className="scrollx flex gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible">
@@ -215,12 +222,9 @@ export function QuickAddExpenseSheet({
 
           {error && <p className="text-sm text-negative-600">{error}</p>}
 
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[140px_1fr]">
-            <input type="date" required className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-            <button type="submit" disabled={saving} className="btn-primary hidden sm:inline-flex">
-              {saving ? t(locale, "expenseForm.submitting") : t(locale, "expenseForm.submitAdd")}
-            </button>
-          </div>
+          <button type="submit" disabled={saving} className="btn-primary hidden w-full sm:inline-flex">
+            {saving ? t(locale, "expenseForm.submitting") : t(locale, "expenseForm.submitAdd")}
+          </button>
           </div>
         </div>
 
