@@ -33,3 +33,22 @@ export async function validateSettlementExpenseIds(
     }
   }
 }
+
+/** Every expense id tagged on any settlement in a household — i.e. expenses already marked as paid. */
+export async function getSettledExpenseIds(householdId: string): Promise<Set<string>> {
+  const settlements = await prisma.settlement.findMany({
+    where: { householdId },
+    select: { expenseIds: true },
+  });
+  return new Set(settlements.flatMap((s) => s.expenseIds));
+}
+
+/** Throws if the given expense is already tagged on a settlement — such an expense is locked from further edits. */
+export async function assertExpenseNotSettled(householdId: string, expenseId: string): Promise<void> {
+  const settlement = await prisma.settlement.findFirst({
+    where: { householdId, expenseIds: { has: expenseId } },
+  });
+  if (settlement) {
+    throw new SettlementValidationError("This expense is part of a recorded payment and can no longer be edited or deleted.");
+  }
+}

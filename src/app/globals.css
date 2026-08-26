@@ -42,6 +42,9 @@
   .badge-scheduled {
     @apply inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500;
   }
+  .badge-locked {
+    @apply inline-flex items-center rounded-full bg-positive-50 px-2.5 py-0.5 text-xs font-medium text-positive-700;
+  }
   .split-chip {
     @apply inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500;
   }

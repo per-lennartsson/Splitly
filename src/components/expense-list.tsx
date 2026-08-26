@@ -26,6 +26,7 @@ export interface ExpenseVM {
   paidByIsPlaceholder?: boolean;
   date: string;
   projected: boolean;
+  locked?: boolean;
   splits: ExpenseSplitVM[];
 }
 
@@ -265,9 +266,10 @@ export function ExpenseList({
                 categoryName={e.categoryName}
                 categoryColor={e.categoryColor}
                 splits={e.splits.map((s) => ({ name: s.name, amount: money(s.amount) }))}
-                editHref={`/households/${householdId}/expenses/${e.id}/edit`}
-                onDelete={() => handleDelete(e.id)}
+                editHref={e.locked ? undefined : `/households/${householdId}/expenses/${e.id}/edit`}
+                onDelete={e.locked ? undefined : () => handleDelete(e.id)}
                 deleteBusy={busyId === e.id}
+                locked={e.locked}
                 locale={locale}
               />
             ))

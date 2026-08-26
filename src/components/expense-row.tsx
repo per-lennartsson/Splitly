@@ -29,6 +29,7 @@ export function ExpenseRow({
   categoryColor,
   splits,
   projected = false,
+  locked = false,
   editHref,
   onDelete,
   deleteBusy = false,
@@ -41,6 +42,7 @@ export function ExpenseRow({
   categoryColor: string | null;
   splits?: SplitShareVM[];
   projected?: boolean;
+  locked?: boolean;
   editHref?: string;
   onDelete?: () => void;
   deleteBusy?: boolean;
@@ -48,7 +50,7 @@ export function ExpenseRow({
 }) {
   const color = categoryColor ?? "#8a909b";
   const abbr = abbreviate(categoryName ?? title);
-  const showActions = !projected && (editHref || onDelete);
+  const showActions = !projected && !locked && (editHref || onDelete);
 
   const [swipeOpen, setSwipeOpen] = useState(false);
   const dragStartX = useRef<number | null>(null);
@@ -113,6 +115,7 @@ export function ExpenseRow({
           <p className={clsx("truncate text-base font-semibold sm:text-sm sm:font-medium", projected ? "text-slate-600" : "text-slate-900")}>
             {title}
             {projected && <span className="badge-scheduled ml-2 align-middle">{t(locale, "expenseList.scheduled")}</span>}
+            {locked && <span className="badge-locked ml-2 align-middle">{t(locale, "expenseList.paidLocked")}</span>}
           </p>
           <p className="mt-0.5 truncate text-[13px] text-slate-400 sm:text-xs">{meta}</p>
           {splits && splits.length > 1 && (

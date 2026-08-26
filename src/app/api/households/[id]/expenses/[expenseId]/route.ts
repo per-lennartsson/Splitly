@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ForbiddenError, requireMembership } from "@/lib/household-access";
 import { expenseInputSchema } from "@/lib/expense-schema";
 import { ExpenseValidationError, resolveExpenseSplits } from "@/lib/expense-service";
+import { assertExpenseNotSettled, SettlementValidationError } from "@/lib/settlement-service";
 
 export async function GET(
   _req: Request,
@@ -49,6 +50,15 @@ export async function PATCH(
     where: { id: params.expenseId, householdId: params.id, deletedAt: null },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  try {
+    await assertExpenseNotSettled(params.id, params.expenseId);
+  } catch (e) {
+    if (e instanceof SettlementValidationError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    throw e;
+  }
 
   const parsed = expenseInputSchema.safeParse(await req.json());
   if (!parsed.success) {
@@ -128,6 +138,15 @@ export async function DELETE(
     where: { id: params.expenseId, householdId: params.id, deletedAt: null },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  try {
+    await assertExpenseNotSettled(params.id, params.expenseId);
+  } catch (e) {
+    if (e instanceof SettlementValidationError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    throw e;
+  }
 
   // Soft delete: history and past balances remain reconstructable, and the
   // balance engine simply excludes it since it always filters deletedAt: null.

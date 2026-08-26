@@ -6,6 +6,7 @@ import { ExpenseList, type ExpenseVM } from "@/components/expense-list";
 import { getProjectedExpenses } from "@/lib/projected-expenses";
 import { ensureRecurringGenerated } from "@/lib/recurring-generator";
 import { isSameOrFutureMonth } from "@/lib/date-utils";
+import { getSettledExpenseIds } from "@/lib/settlement-service";
 
 export default async function ExpensesPage({
   params: paramsPromise,
@@ -30,6 +31,7 @@ export default async function ExpensesPage({
 
   const now = new Date();
   const isRecurring = household.householdType === "RECURRING";
+  const settledExpenseIds = await getSettledExpenseIds(params.id);
 
   let expenseVMs: ExpenseVM[] = [];
   let monthNav: { year: number; monthIndex0: number; isCurrentOrPast: boolean } | undefined;
@@ -81,6 +83,7 @@ export default async function ExpensesPage({
         paidByName: e.payer.name,
         date: e.date.toISOString().slice(0, 10),
         projected: false,
+        locked: settledExpenseIds.has(e.id),
         splits: e.splits
           .map((s) => ({ name: s.user.name, amount: Number(s.amountOwed) }))
           .sort((a, b) => b.amount - a.amount),
@@ -127,6 +130,7 @@ export default async function ExpensesPage({
       paidByIsPlaceholder: e.payer.isPlaceholder,
       date: e.date.toISOString().slice(0, 10),
       projected: false,
+      locked: settledExpenseIds.has(e.id),
       splits: e.splits
         .map((s) => ({ name: s.user.name, amount: Number(s.amountOwed) }))
         .sort((a, b) => b.amount - a.amount),

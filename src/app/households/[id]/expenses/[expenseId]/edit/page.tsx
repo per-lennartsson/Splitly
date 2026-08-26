@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ExpenseForm } from "@/components/expense-form";
 import { t } from "@/lib/i18n/t";
+import { getSettledExpenseIds } from "@/lib/settlement-service";
 
 export default async function EditExpensePage({
   params: paramsPromise,
@@ -33,6 +34,9 @@ export default async function EditExpensePage({
     include: { splits: true },
   });
   if (!expense) redirect(`/households/${params.id}/expenses`);
+
+  const settledExpenseIds = await getSettledExpenseIds(params.id);
+  if (settledExpenseIds.has(expense.id)) redirect(`/households/${params.id}/expenses`);
 
   const locale = session.user.locale;
 
