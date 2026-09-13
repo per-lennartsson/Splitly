@@ -9,6 +9,7 @@ import { ensureRecurringGenerated } from "@/lib/recurring-generator";
 import { getProjectedExpenses } from "@/lib/projected-expenses";
 import { getSettledExpenseIds } from "@/lib/settlement-service";
 import { nothingOwedByOthers } from "@/lib/expense-status";
+import { sumSharesByUser } from "@/lib/member-shares";
 import { budgetProgressPercent, budgetStatus } from "@/lib/budget";
 import { formatMonthLabel } from "@/lib/date-utils";
 import { intlLocale } from "@/lib/i18n/translations";
@@ -43,7 +44,17 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
   // expense shows up in this same page load, not the next one.
   await ensureRecurringGenerated(params.id, now);
 
-  const [recentExpenses, monthTotalAgg, { netPositions }, categories, spendByCategory, projected, settledExpenseIds] = await Promise.all([
+  const [
+    recentExpenses,
+    monthTotalAgg,
+    { netPositions },
+    categories,
+    spendByCategory,
+    projected,
+    settledExpenseIds,
+    monthSplits,
+    members,
+  ] = await Promise.all([
     prisma.expense.findMany({
       where: { householdId: params.id, deletedAt: null },
       include: {
@@ -76,12 +87,29 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
     }),
     isRecurring ? getProjectedExpenses(params.id, now.getFullYear(), now.getMonth()) : Promise.resolve([]),
     getSettledExpenseIds(params.id),
+    isRecurring
+      ? prisma.expenseSplit.findMany({
+          where: { expense: { householdId: params.id, deletedAt: null, date: { gte: monthStart, lt: monthEnd } } },
+          select: { userId: true, amountOwed: true },
+        })
+      : Promise.resolve([]),
+    // Not scoped to active membership, so a share owed by someone who has
+    // since left still resolves to a name.
+    prisma.householdMember.findMany({
+      where: { householdId: params.id },
+      include: { user: { select: { name: true } } },
+    }),
   ]);
 
   const myPosition = netPositions.find((p) => p.userId === session.user.id);
   const monthTotal = Number(monthTotalAgg._sum.amount ?? 0);
   const projectedTotal = projected.reduce((sum, e) => sum + e.amount, 0);
   const estimatedMonthTotal = monthTotal + projectedTotal;
+  const memberNames = Object.fromEntries(members.map((m) => [m.userId, m.user.name]));
+  const estimatedShares = sumSharesByUser([
+    ...monthSplits.map((s) => ({ userId: s.userId, amountOwed: Number(s.amountOwed) })),
+    ...projected.flatMap((e) => e.splits),
+  ]);
   const money = (n: number) => formatMoney(n, household.currency, intlLocale(locale));
   const balance = myPosition?.netBalance ?? 0;
 
@@ -121,6 +149,18 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
               <p className="mt-1.5 text-[13px] text-brand-300">
                 {t(locale, "dashboard.estimatedTotal")}{" "}
                 <span className="font-semibold text-white">{money(estimatedMonthTotal)}</span>
+              </p>
+            )}
+            {isRecurring && projected.length > 0 && estimatedShares.length > 1 && (
+              <p className="mt-1 text-[13px] text-brand-300">
+                {t(locale, "dashboard.estimatedSplit")}{" "}
+                {estimatedShares.map((s, i) => (
+                  <span key={s.userId}>
+                    {i > 0 && " · "}
+                    {memberNames[s.userId] ?? "Unknown"}{" "}
+                    <span className="font-semibold text-white">{money(s.amount)}</span>
+                  </span>
+                ))}
               </p>
             )}
           </div>
