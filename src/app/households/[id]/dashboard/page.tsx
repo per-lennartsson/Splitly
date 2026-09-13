@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getHouseholdBalances } from "@/lib/household-balances";
 import { ensureRecurringGenerated } from "@/lib/recurring-generator";
 import { getProjectedExpenses } from "@/lib/projected-expenses";
+import { getSettledExpenseIds } from "@/lib/settlement-service";
 import { budgetProgressPercent, budgetStatus } from "@/lib/budget";
 import { formatMonthLabel } from "@/lib/date-utils";
 import { intlLocale } from "@/lib/i18n/translations";
@@ -41,7 +42,7 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
   // expense shows up in this same page load, not the next one.
   await ensureRecurringGenerated(params.id, now);
 
-  const [recentExpenses, monthTotalAgg, { netPositions }, categories, spendByCategory, projected] = await Promise.all([
+  const [recentExpenses, monthTotalAgg, { netPositions }, categories, spendByCategory, projected, settledExpenseIds] = await Promise.all([
     prisma.expense.findMany({
       where: { householdId: params.id, deletedAt: null },
       include: {
@@ -73,6 +74,7 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
       _sum: { amount: true },
     }),
     isRecurring ? getProjectedExpenses(params.id, now.getFullYear(), now.getMonth()) : Promise.resolve([]),
+    getSettledExpenseIds(params.id),
   ]);
 
   const myPosition = netPositions.find((p) => p.userId === session.user.id);
@@ -204,6 +206,7 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
                 splits={[...e.splits]
                   .sort((a, b) => Number(b.amountOwed) - Number(a.amountOwed))
                   .map((s) => ({ name: s.user.name, amount: money(Number(s.amountOwed)) }))}
+                locked={settledExpenseIds.has(e.id)}
                 locale={locale}
               />
             ))}
