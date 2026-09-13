@@ -30,6 +30,7 @@ export function ExpenseRow({
   splits,
   projected = false,
   locked = false,
+  paid = false,
   editHref,
   onDelete,
   deleteBusy = false,
@@ -43,6 +44,7 @@ export function ExpenseRow({
   splits?: SplitShareVM[];
   projected?: boolean;
   locked?: boolean;
+  paid?: boolean;
   editHref?: string;
   onDelete?: () => void;
   deleteBusy?: boolean;
@@ -115,7 +117,7 @@ export function ExpenseRow({
           <p className={clsx("truncate text-base font-semibold sm:text-sm sm:font-medium", projected ? "text-slate-600" : "text-slate-900")}>
             {title}
             {projected && <span className="badge-scheduled ml-2 align-middle">{t(locale, "expenseList.scheduled")}</span>}
-            {locked && <span className="badge-locked ml-2 align-middle">{t(locale, "expenseList.paidLocked")}</span>}
+            {(locked || paid) && <span className="badge-locked ml-2 align-middle">{t(locale, "expenseList.paidLocked")}</span>}
           </p>
           <p className="mt-0.5 truncate text-[13px] text-slate-400 sm:text-xs">{meta}</p>
           {splits && splits.length > 1 && (

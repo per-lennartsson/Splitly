@@ -8,6 +8,7 @@ import { getHouseholdBalances } from "@/lib/household-balances";
 import { ensureRecurringGenerated } from "@/lib/recurring-generator";
 import { getProjectedExpenses } from "@/lib/projected-expenses";
 import { getSettledExpenseIds } from "@/lib/settlement-service";
+import { nothingOwedByOthers } from "@/lib/expense-status";
 import { budgetProgressPercent, budgetStatus } from "@/lib/budget";
 import { formatMonthLabel } from "@/lib/date-utils";
 import { intlLocale } from "@/lib/i18n/translations";
@@ -207,6 +208,7 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
                   .sort((a, b) => Number(b.amountOwed) - Number(a.amountOwed))
                   .map((s) => ({ name: s.user.name, amount: money(Number(s.amountOwed)) }))}
                 locked={settledExpenseIds.has(e.id)}
+                paid={nothingOwedByOthers(e.paidBy, e.splits)}
                 locale={locale}
               />
             ))}
