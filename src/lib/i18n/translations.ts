@@ -216,6 +216,7 @@ const en = {
     recordedExpenses: "Recorded expenses",
     scheduled: "Scheduled",
     paidLocked: "Paid",
+    partlyPaid: "Partly paid",
     noExpensesHere: "No expenses here yet.",
     deleteConfirm: "Delete this expense? It stays in history but no longer counts toward balances.",
     prev: "← Prev",
@@ -278,6 +279,7 @@ const en = {
     noHistory: "No payments recorded yet.",
     paid: "{from} paid {to}",
     forExpenses: "For: {items}",
+    partlyPaid: "{remaining} of {owed} left",
   },
   account: {
     title: "Account settings",
@@ -488,6 +490,7 @@ const sv: typeof en = {
     recordedExpenses: "Registrerade utgifter",
     scheduled: "Schemalagd",
     paidLocked: "Betald",
+    partlyPaid: "Delvis betald",
     noExpensesHere: "Inga utgifter här ännu.",
     deleteConfirm: "Ta bort denna utgift? Den finns kvar i historiken men räknas inte längre med i saldot.",
     prev: "← Föregående",
@@ -550,6 +553,7 @@ const sv: typeof en = {
     noHistory: "Inga betalningar registrerade än.",
     paid: "{from} betalade {to}",
     forExpenses: "Gäller: {items}",
+    partlyPaid: "{remaining} av {owed} kvar",
   },
   account: {
     title: "Kontoinställningar",

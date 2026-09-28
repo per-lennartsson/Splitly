@@ -4,7 +4,7 @@ import Link from "next/link";
 import clsx from "clsx";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getHouseholdBalances } from "@/lib/household-balances";
+import { getExpenseSettlementBadges, getHouseholdBalances } from "@/lib/household-balances";
 import { ensureRecurringGenerated } from "@/lib/recurring-generator";
 import { getProjectedExpenses } from "@/lib/projected-expenses";
 import { getSettledExpenseIds } from "@/lib/settlement-service";
@@ -54,6 +54,7 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
     settledExpenseIds,
     monthSplits,
     members,
+    settlementBadges,
   ] = await Promise.all([
     prisma.expense.findMany({
       where: { householdId: params.id, deletedAt: null },
@@ -99,6 +100,7 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
       where: { householdId: params.id },
       include: { user: { select: { name: true } } },
     }),
+    getExpenseSettlementBadges(params.id),
   ]);
 
   const myPosition = netPositions.find((p) => p.userId === session.user.id);
@@ -248,7 +250,8 @@ export default async function DashboardPage({ params: paramsPromise }: { params:
                   .sort((a, b) => Number(b.amountOwed) - Number(a.amountOwed))
                   .map((s) => ({ name: s.user.name, amount: money(Number(s.amountOwed)) }))}
                 locked={settledExpenseIds.has(e.id)}
-                paid={nothingOwedByOthers(e.paidBy, e.splits)}
+                paid={nothingOwedByOthers(e.paidBy, e.splits) || settlementBadges[e.id] === "settled"}
+                partial={settlementBadges[e.id] === "partial"}
                 locale={locale}
               />
             ))}

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getHouseholdBalances } from "@/lib/household-balances";
+import { getHouseholdBalances, getOpenExpenseShares } from "@/lib/household-balances";
 import { SettleUpView } from "@/components/settle-up-view";
 
 export default async function SettleUpPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -27,13 +27,10 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
 
   const { netPositions, transactions } = await getHouseholdBalances(params.id);
 
-  // Real (non-deleted) expenses with splits, so the settle-up UI can offer
-  // "which expenses does this payment cover" as a way to derive a partial amount.
-  const expenses = await prisma.expense.findMany({
-    where: { householdId: params.id, deletedAt: null },
-    include: { splits: true },
-    orderBy: { date: "desc" },
-  });
+  // What's still open on each expense share — accounts for earlier custom-amount
+  // payments (applied oldest first) as well as payments tagged with expenses, so
+  // the "which expenses does this payment cover" picker never charges twice.
+  const openShares = await getOpenExpenseShares(params.id);
   // Titles for the payment-history view, looked up regardless of deletedAt so a
   // settlement's history entry still shows what it was for even if the expense was later deleted.
   const expenseTitleById = Object.fromEntries(
@@ -46,10 +43,6 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
     where: { householdId: params.id },
     orderBy: { date: "desc" },
   });
-  // An expense already tagged on a past payment shouldn't be offered again as
-  // something a new payment could cover.
-  const settledExpenseIds = new Set(settlements.flatMap((s) => s.expenseIds));
-
   return (
     <SettleUpView
       householdId={params.id}
@@ -66,15 +59,14 @@ export default async function SettleUpPage({ params: paramsPromise }: { params: 
         fromName: nameById[tx.fromUserId] ?? "Unknown",
         toName: nameById[tx.toUserId] ?? "Unknown",
       }))}
-      expenses={expenses
-        .filter((e) => !settledExpenseIds.has(e.id))
-        .map((e) => ({
-          id: e.id,
-          title: e.title,
-          date: e.date.toISOString(),
-          paidBy: e.paidBy,
-          splits: e.splits.map((s) => ({ userId: s.userId, amountOwed: Number(s.amountOwed) })),
-        }))}
+      openShares={openShares.map((sh) => ({
+        expenseId: sh.expenseId,
+        debtorId: sh.debtorId,
+        creditorId: sh.creditorId,
+        title: sh.title,
+        owed: sh.owed,
+        remaining: sh.remaining,
+      }))}
       settlementHistory={settlements.map((s) => ({
         id: s.id,
         fromName: nameById[s.fromUserId] ?? "Unknown",
