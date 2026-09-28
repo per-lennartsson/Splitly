@@ -22,12 +22,13 @@ interface TransactionVM {
   amount: number;
 }
 
-interface ExpenseVM {
-  id: string;
+interface OpenShareVM {
+  expenseId: string;
+  debtorId: string;
+  creditorId: string;
   title: string;
-  date: string;
-  paidBy: string;
-  splits: { userId: string; amountOwed: number }[];
+  owed: number;
+  remaining: number;
 }
 
 interface SettlementHistoryVM {
@@ -52,7 +53,7 @@ export function SettleUpView({
   locale,
   netPositions,
   transactions,
-  expenses,
+  openShares,
   settlementHistory,
 }: {
   householdId: string;
@@ -61,7 +62,7 @@ export function SettleUpView({
   locale: Locale;
   netPositions: NetPositionVM[];
   transactions: TransactionVM[];
-  expenses: ExpenseVM[];
+  openShares: OpenShareVM[];
   settlementHistory: SettlementHistoryVM[];
 }) {
   const router = useRouter();
@@ -75,14 +76,10 @@ export function SettleUpView({
 
   const myPosition = netPositions.find((p) => p.userId === currentUserId);
 
-  function shareOwed(expense: ExpenseVM, userId: string) {
-    return expense.splits.find((s) => s.userId === userId)?.amountOwed ?? 0;
-  }
-
-  // Real expenses that toUser paid and fromUser has a split on — i.e. expenses
-  // that make up (some of) this debt, so the user can pick which ones a payment covers.
+  // Expense shares fromUser still owes toUser, oldest first — what's left after
+  // earlier payments — so the user can pick which ones this payment covers.
   function coveringExpenses(tx: TransactionVM) {
-    return expenses.filter((e) => e.paidBy === tx.toUserId && e.splits.some((s) => s.userId === tx.fromUserId));
+    return openShares.filter((s) => s.debtorId === tx.fromUserId && s.creditorId === tx.toUserId);
   }
 
   function openPanel(tx: TransactionVM) {
@@ -107,8 +104,8 @@ export function SettleUpView({
       }
 
       const sumCents = coveringExpenses(tx)
-        .filter((e) => current.has(e.id))
-        .reduce((acc, e) => acc + Math.round(shareOwed(e, tx.fromUserId) * 100), 0);
+        .filter((e) => current.has(e.expenseId))
+        .reduce((acc, e) => acc + Math.round(e.remaining * 100), 0);
       if (sumCents > 0) {
         setAmountDrafts((drafts) => ({ ...drafts, [key]: (sumCents / 100).toFixed(2) }));
       }
@@ -285,17 +282,24 @@ export function SettleUpView({
                         <div>
                           <p className="label mb-1.5">{t(locale, "settleUp.selectExpenses")}</p>
                           <div className="max-h-48 space-y-1.5 overflow-y-auto">
-                            {covering.map((expense) => (
-                              <label key={expense.id} className="flex cursor-pointer items-center justify-between gap-2 text-sm text-slate-700">
+                            {covering.map((share) => (
+                              <label key={share.expenseId} className="flex cursor-pointer items-center justify-between gap-2 text-sm text-slate-700">
                                 <span className="flex items-center gap-2">
                                   <input
                                     type="checkbox"
-                                    checked={selected.has(expense.id)}
-                                    onChange={() => toggleExpense(tx, expense.id)}
+                                    checked={selected.has(share.expenseId)}
+                                    onChange={() => toggleExpense(tx, share.expenseId)}
                                   />
-                                  {expense.title}
+                                  {share.title}
                                 </span>
-                                <span className="text-slate-500">{money(shareOwed(expense, tx.fromUserId))}</span>
+                                <span className="text-right text-slate-500">
+                                  {money(share.remaining)}
+                                  {share.remaining < share.owed && (
+                                    <span className="block text-xs text-slate-400">
+                                      {t(locale, "settleUp.partlyPaid", { remaining: money(share.remaining), owed: money(share.owed) })}
+                                    </span>
+                                  )}
+                                </span>
                               </label>
                             ))}
                           </div>

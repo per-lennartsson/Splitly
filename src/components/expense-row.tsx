@@ -31,6 +31,7 @@ export function ExpenseRow({
   projected = false,
   locked = false,
   paid = false,
+  partial = false,
   editHref,
   onDelete,
   deleteBusy = false,
@@ -45,6 +46,8 @@ export function ExpenseRow({
   projected?: boolean;
   locked?: boolean;
   paid?: boolean;
+  /** Some, but not all, of what others owe on this expense has been paid back. */
+  partial?: boolean;
   editHref?: string;
   onDelete?: () => void;
   deleteBusy?: boolean;
@@ -117,7 +120,11 @@ export function ExpenseRow({
           <p className={clsx("truncate text-base font-semibold sm:text-sm sm:font-medium", projected ? "text-slate-600" : "text-slate-900")}>
             {title}
             {projected && <span className="badge-scheduled ml-2 align-middle">{t(locale, "expenseList.scheduled")}</span>}
-            {(locked || paid) && <span className="badge-locked ml-2 align-middle">{t(locale, "expenseList.paidLocked")}</span>}
+            {partial ? (
+              <span className="badge-partial ml-2 align-middle">{t(locale, "expenseList.partlyPaid")}</span>
+            ) : (
+              (locked || paid) && <span className="badge-locked ml-2 align-middle">{t(locale, "expenseList.paidLocked")}</span>
+            )}
           </p>
           <p className="mt-0.5 truncate text-[13px] text-slate-400 sm:text-xs">{meta}</p>
           {splits && splits.length > 1 && (

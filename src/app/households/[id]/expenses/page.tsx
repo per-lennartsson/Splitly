@@ -8,6 +8,7 @@ import { ensureRecurringGenerated } from "@/lib/recurring-generator";
 import { isSameOrFutureMonth } from "@/lib/date-utils";
 import { getSettledExpenseIds } from "@/lib/settlement-service";
 import { nothingOwedByOthers } from "@/lib/expense-status";
+import { getExpenseSettlementBadges } from "@/lib/household-balances";
 
 export default async function ExpensesPage({
   params: paramsPromise,
@@ -32,7 +33,10 @@ export default async function ExpensesPage({
 
   const now = new Date();
   const isRecurring = household.householdType === "RECURRING";
-  const settledExpenseIds = await getSettledExpenseIds(params.id);
+  const [settledExpenseIds, settlementBadges] = await Promise.all([
+    getSettledExpenseIds(params.id),
+    getExpenseSettlementBadges(params.id),
+  ]);
 
   let expenseVMs: ExpenseVM[] = [];
   let monthNav: { year: number; monthIndex0: number; isCurrentOrPast: boolean } | undefined;
@@ -85,7 +89,8 @@ export default async function ExpensesPage({
         date: e.date.toISOString().slice(0, 10),
         projected: false,
         locked: settledExpenseIds.has(e.id),
-        paid: nothingOwedByOthers(e.paidBy, e.splits),
+        paid: nothingOwedByOthers(e.paidBy, e.splits) || settlementBadges[e.id] === "settled",
+        partial: settlementBadges[e.id] === "partial",
         splits: e.splits
           .map((s) => ({ name: s.user.name, amount: Number(s.amountOwed) }))
           .sort((a, b) => b.amount - a.amount),
@@ -133,7 +138,8 @@ export default async function ExpensesPage({
       date: e.date.toISOString().slice(0, 10),
       projected: false,
       locked: settledExpenseIds.has(e.id),
-      paid: nothingOwedByOthers(e.paidBy, e.splits),
+      paid: nothingOwedByOthers(e.paidBy, e.splits) || settlementBadges[e.id] === "settled",
+        partial: settlementBadges[e.id] === "partial",
       splits: e.splits
         .map((s) => ({ name: s.user.name, amount: Number(s.amountOwed) }))
         .sort((a, b) => b.amount - a.amount),

@@ -29,6 +29,7 @@ export interface ExpenseVM {
   locked?: boolean;
   /** Shows the paid badge without locking — for expenses no one else owes a share of. */
   paid?: boolean;
+  partial?: boolean;
   splits: ExpenseSplitVM[];
 }
 
@@ -273,6 +274,7 @@ export function ExpenseList({
                 deleteBusy={busyId === e.id}
                 locked={e.locked}
                 paid={e.paid}
+                partial={e.partial}
                 locale={locale}
               />
             ))
