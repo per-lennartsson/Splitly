@@ -38,6 +38,8 @@ export function HouseholdSetup({
   const [addingGuest, setAddingGuest] = useState(false);
   const [guestError, setGuestError] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [invitingUserId, setInvitingUserId] = useState<string | null>(null);
+  const [copiedGuestId, setCopiedGuestId] = useState<string | null>(null);
 
   const total = useMemo(
     () => Object.values(percents).reduce((sum, p) => sum + (Number.isFinite(p) ? p : 0), 0),
@@ -111,6 +113,28 @@ export function HouseholdSetup({
     router.refresh();
   }
 
+  async function handleInviteGuest(userId: string) {
+    setInvitingUserId(userId);
+    setGuestError(null);
+    const res = await fetch(`/api/households/${household.id}/members/${userId}/claim-link`, { method: "POST" });
+    setInvitingUserId(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setGuestError(typeof data.error === "string" ? data.error : t(locale, "householdSetup.inviteGuestError"));
+      return;
+    }
+    const data = await res.json();
+    const link = `${window.location.origin}${data.path}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedGuestId(userId);
+      setTimeout(() => setCopiedGuestId((current) => (current === userId ? null : current)), 2000);
+    } catch {
+      // Clipboard can be blocked (e.g. insecure origin); fall back to showing the link.
+      window.prompt(t(locale, "householdSetup.inviteGuestPrompt"), link);
+    }
+  }
+
   async function handleRemoveGuest(userId: string) {
     setRemovingUserId(userId);
     const res = await fetch(`/api/households/${household.id}/members/${userId}`, { method: "DELETE" });
@@ -168,13 +192,24 @@ export function HouseholdSetup({
                   {!m.isPlaceholder && <p className="truncate text-xs text-slate-400">{m.email}</p>}
                 </div>
                 {m.isPlaceholder && currentUserIsAdmin && (
-                  <button
-                    onClick={() => handleRemoveGuest(m.userId)}
-                    disabled={removingUserId === m.userId}
-                    className="flex-none text-xs font-medium text-negative-600 hover:text-negative-700"
-                  >
-                    {t(locale, "householdSetup.removeGuest")}
-                  </button>
+                  <div className="flex flex-none items-center gap-4">
+                    <button
+                      onClick={() => handleInviteGuest(m.userId)}
+                      disabled={invitingUserId === m.userId}
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                    >
+                      {copiedGuestId === m.userId
+                        ? t(locale, "householdSetup.inviteGuestCopied")
+                        : t(locale, "householdSetup.inviteGuest")}
+                    </button>
+                    <button
+                      onClick={() => handleRemoveGuest(m.userId)}
+                      disabled={removingUserId === m.userId}
+                      className="text-xs font-medium text-negative-600 hover:text-negative-700"
+                    >
+                      {t(locale, "householdSetup.removeGuest")}
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

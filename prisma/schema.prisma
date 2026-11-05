@@ -81,6 +81,11 @@ model HouseholdMember {
   joinedAt             DateTime   @default(now()) @map("joined_at")
   leftAt               DateTime?  @map("left_at")
 
+  // Guest (placeholder) memberships only: SHA-256 hash of a single-use claim
+  // token that lets a real account take over this guest. See guest-claim-service.ts.
+  claimTokenHash      String?   @unique @map("claim_token_hash")
+  claimTokenCreatedAt DateTime? @map("claim_token_created_at")
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
