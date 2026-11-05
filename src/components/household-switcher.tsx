@@ -82,7 +82,11 @@ export function HouseholdSwitcher({
       return;
     }
     const data = await res.json();
-    router.push(`/households/${data.household.id}/dashboard`);
+    router.push(
+      data.guests?.length > 0
+        ? `/households/${data.household.id}/who-are-you`
+        : `/households/${data.household.id}/dashboard`
+    );
   }
 
   return (

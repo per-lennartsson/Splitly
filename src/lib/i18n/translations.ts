@@ -129,6 +129,15 @@ const en = {
     goToHouseholds: "Go to my groups",
     genericError: "Could not connect the guest to your account.",
   },
+  guestPicker: {
+    title: "Are you one of these guests?",
+    desc: "Someone may already have added you to {group} as a guest. Pick your name to take over your share.",
+    confirmText: "Everything recorded for {guest} — expenses, shares and payments — will move to you.",
+    confirmButton: "Yes, I'm {guest}",
+    claiming: "Connecting...",
+    noneOfThese: "None of these, continue →",
+    genericError: "Could not connect the guest to your account.",
+  },
   joinHousehold: {
     title: "Join a household",
     inviteCode: "Invite code",
@@ -418,6 +427,15 @@ const sv: typeof en = {
     invalid: "Inbjudningslänken är ogiltig eller har redan använts.",
     expired: "Inbjudningslänken har gått ut. Be gruppens admin om en ny.",
     goToHouseholds: "Gå till mina grupper",
+    genericError: "Kunde inte koppla gästen till ditt konto.",
+  },
+  guestPicker: {
+    title: "Är du någon av de här gästerna?",
+    desc: "Någon kan redan ha lagt till dig i {group} som gäst. Välj ditt namn för att ta över din andel.",
+    confirmText: "Allt som registrerats för {guest} — utgifter, andelar och betalningar — flyttas till dig.",
+    confirmButton: "Ja, jag är {guest}",
+    claiming: "Kopplar...",
+    noneOfThese: "Ingen av dessa, fortsätt →",
     genericError: "Kunde inte koppla gästen till ditt konto.",
   },
   joinHousehold: {

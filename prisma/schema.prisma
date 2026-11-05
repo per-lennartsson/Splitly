@@ -85,6 +85,9 @@ model HouseholdMember {
   // token that lets a real account take over this guest. See guest-claim-service.ts.
   claimTokenHash      String?   @unique @map("claim_token_hash")
   claimTokenCreatedAt DateTime? @map("claim_token_created_at")
+  // Real memberships only: set when this member took over a guest's spot
+  // themselves after joining with the group code (one guest per member).
+  claimedGuestAt      DateTime? @map("claimed_guest_at")
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

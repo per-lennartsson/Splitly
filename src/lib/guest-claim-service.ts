@@ -77,15 +77,7 @@ function addDecimals(a: Prisma.Decimal | null, b: Prisma.Decimal | null): Prisma
   return a.plus(b);
 }
 
-/**
- * Merges a guest (placeholder user) into a real account: every expense, split,
- * settlement and recurring row that referenced the guest is re-pointed at the
- * real user, the membership is handed over, and the placeholder user is deleted.
- *
- * Collisions (the real user is already on the same expense as the guest) are
- * resolved by summing the two shares; settlements that become self-payments
- * are dropped. Net balances are unchanged by construction.
- */
+/** Claims a guest via an admin-issued single-use link (see mergeGuestIntoUser for what moves). */
 export async function claimGuest(token: string, realUserId: string, now = new Date()): Promise<{ householdId: string }> {
   return prisma.$transaction(async (tx) => {
     const guestMembership = await tx.householdMember.findUnique({
@@ -99,90 +91,194 @@ export async function claimGuest(token: string, realUserId: string, now = new Da
       throw new GuestClaimError("EXPIRED", "This invite link has expired. Ask the group admin for a new one.");
     }
 
-    const realUser = await tx.user.findUnique({ where: { id: realUserId } });
-    if (!realUser || realUser.isPlaceholder) {
-      throw new GuestClaimError("NOT_ALLOWED", "You need a real account to claim a guest.");
-    }
+    await mergeGuestIntoUser(tx, guestMembership, realUserId);
+    return { householdId: guestMembership.householdId };
+  });
+}
 
-    const guestId = guestMembership.user.id;
-    const householdId = guestMembership.householdId;
+/** How long after joining with the group code a member may pick which guest they are. */
+export const SELF_CLAIM_WINDOW_HOURS = 24;
 
-    // Expenses and recurring templates the guest paid.
-    await tx.expense.updateMany({ where: { householdId, paidBy: guestId }, data: { paidBy: realUserId } });
-    await tx.recurringExpense.updateMany({ where: { householdId, paidBy: guestId }, data: { paidBy: realUserId } });
+export interface SelfClaimableGuest {
+  userId: string;
+  name: string;
+}
 
-    // Expense splits: move, or sum into the real user's existing split on the same expense.
-    const guestSplits = await tx.expenseSplit.findMany({ where: { userId: guestId } });
-    if (guestSplits.length > 0) {
-      const userSplits = await tx.expenseSplit.findMany({
-        where: { userId: realUserId, expenseId: { in: guestSplits.map((s) => s.expenseId) } },
-      });
-      const userSplitByExpense = new Map(userSplits.map((s) => [s.expenseId, s]));
-      for (const split of guestSplits) {
-        const existing = userSplitByExpense.get(split.expenseId);
-        if (existing) {
-          await tx.expenseSplit.update({
-            where: { id: existing.id },
-            data: {
-              amountOwed: existing.amountOwed.plus(split.amountOwed),
-              percent: addDecimals(existing.percent, split.percent),
-            },
-          });
-          await tx.expenseSplit.delete({ where: { id: split.id } });
-        } else {
-          await tx.expenseSplit.update({ where: { id: split.id }, data: { userId: realUserId } });
-        }
-      }
-    }
+/**
+ * Guests the caller may take over themselves in this household, or [] if
+ * they're not eligible (not an event group, joined too long ago, already
+ * claimed a guest, or not an active real member).
+ */
+export async function listSelfClaimableGuests(
+  householdId: string,
+  realUserId: string,
+  now = new Date()
+): Promise<SelfClaimableGuest[]> {
+  const membership = await prisma.householdMember.findFirst({
+    where: { householdId, userId: realUserId, leftAt: null },
+    include: { user: { select: { isPlaceholder: true } }, household: { select: { householdType: true, createdBy: true } } },
+  });
+  if (!membership || !isSelfClaimEligible(membership, now)) return [];
 
-    // Recurring split overrides: same move-or-sum rule.
-    const guestOverrides = await tx.recurringSplitOverride.findMany({ where: { userId: guestId } });
-    if (guestOverrides.length > 0) {
-      const userOverrides = await tx.recurringSplitOverride.findMany({
-        where: { userId: realUserId, recurringId: { in: guestOverrides.map((o) => o.recurringId) } },
-      });
-      const userOverrideByRecurring = new Map(userOverrides.map((o) => [o.recurringId, o]));
-      for (const override of guestOverrides) {
-        const existing = userOverrideByRecurring.get(override.recurringId);
-        if (existing) {
-          await tx.recurringSplitOverride.update({
-            where: { id: existing.id },
-            data: {
-              amountOwed: addDecimals(existing.amountOwed, override.amountOwed),
-              percent: addDecimals(existing.percent, override.percent),
-            },
-          });
-          await tx.recurringSplitOverride.delete({ where: { id: override.id } });
-        } else {
-          await tx.recurringSplitOverride.update({ where: { id: override.id }, data: { userId: realUserId } });
-        }
-      }
-    }
+  const guests = await prisma.householdMember.findMany({
+    where: { householdId, leftAt: null, user: { isPlaceholder: true } },
+    include: { user: { select: { id: true, name: true } } },
+    orderBy: { joinedAt: "asc" },
+  });
+  return guests.map((g) => ({ userId: g.user.id, name: g.user.name }));
+}
 
-    // Settlements: re-point both sides, then drop any that became self-payments.
-    await tx.settlement.updateMany({ where: { householdId, fromUserId: guestId }, data: { fromUserId: realUserId } });
-    await tx.settlement.updateMany({ where: { householdId, toUserId: guestId }, data: { toUserId: realUserId } });
-    await tx.settlement.deleteMany({ where: { householdId, fromUserId: realUserId, toUserId: realUserId } });
+function isSelfClaimEligible(
+  membership: {
+    joinedAt: Date;
+    claimedGuestAt: Date | null;
+    user: { isPlaceholder: boolean };
+    userId: string;
+    household: { householdType: "RECURRING" | "EVENT"; createdBy: string };
+  },
+  now: Date
+): boolean {
+  return (
+    membership.household.householdType === "EVENT" &&
+    membership.household.createdBy !== membership.userId &&
+    !membership.user.isPlaceholder &&
+    membership.claimedGuestAt === null &&
+    now.getTime() - membership.joinedAt.getTime() <= SELF_CLAIM_WINDOW_HOURS * 3_600_000
+  );
+}
 
-    // Membership: hand the guest's spot over, or reuse the real user's existing one.
-    const userMembership = await tx.householdMember.findUnique({
-      where: { householdId_userId: { householdId, userId: realUserId } },
+/**
+ * Lets a member who just joined with the group code say "I'm this guest":
+ * merges the guest into them without needing an admin-issued link. Limited to
+ * one guest per member, within SELF_CLAIM_WINDOW_HOURS of joining.
+ */
+export async function claimGuestSelf(
+  householdId: string,
+  guestUserId: string,
+  realUserId: string,
+  now = new Date()
+): Promise<{ householdId: string }> {
+  return prisma.$transaction(async (tx) => {
+    const callerMembership = await tx.householdMember.findFirst({
+      where: { householdId, userId: realUserId, leftAt: null },
+      include: { user: { select: { isPlaceholder: true } }, household: { select: { householdType: true, createdBy: true } } },
     });
-    if (!userMembership) {
-      await tx.householdMember.update({
-        where: { id: guestMembership.id },
-        data: { userId: realUserId, claimTokenHash: null, claimTokenCreatedAt: null },
-      });
-    } else {
-      if (userMembership.leftAt !== null) {
-        await tx.householdMember.update({ where: { id: userMembership.id }, data: { leftAt: null } });
-      }
-      await tx.householdMember.delete({ where: { id: guestMembership.id } });
+    if (!callerMembership || !isSelfClaimEligible(callerMembership, now)) {
+      throw new GuestClaimError(
+        "NOT_ALLOWED",
+        "You can only pick a guest once, shortly after joining. Ask the group admin for an invite link instead."
+      );
     }
 
-    // Nothing references the placeholder anymore.
-    await tx.user.delete({ where: { id: guestId } });
+    const guestMembership = await tx.householdMember.findFirst({
+      where: { householdId, userId: guestUserId, leftAt: null },
+      include: { user: { select: { id: true, isPlaceholder: true } } },
+    });
+    if (!guestMembership || !guestMembership.user.isPlaceholder) {
+      throw new GuestClaimError("NOT_A_GUEST", "That person isn't a guest in this group.");
+    }
 
+    await mergeGuestIntoUser(tx, guestMembership, realUserId);
+    await tx.householdMember.update({ where: { id: callerMembership.id }, data: { claimedGuestAt: now } });
     return { householdId };
   });
+}
+
+/**
+ * Merges a guest (placeholder user) into a real account: every expense, split,
+ * settlement and recurring row that referenced the guest is re-pointed at the
+ * real user, the membership is handed over, and the placeholder user is deleted.
+ *
+ * Collisions (the real user is already on the same expense as the guest) are
+ * resolved by summing the two shares; settlements that become self-payments
+ * are dropped. Net balances are unchanged by construction.
+ */
+async function mergeGuestIntoUser(
+  tx: Prisma.TransactionClient,
+  guestMembership: { id: string; householdId: string; user: { id: string } },
+  realUserId: string
+): Promise<void> {
+  const realUser = await tx.user.findUnique({ where: { id: realUserId } });
+  if (!realUser || realUser.isPlaceholder) {
+    throw new GuestClaimError("NOT_ALLOWED", "You need a real account to claim a guest.");
+  }
+
+  const guestId = guestMembership.user.id;
+  const householdId = guestMembership.householdId;
+
+  // Expenses and recurring templates the guest paid.
+  await tx.expense.updateMany({ where: { householdId, paidBy: guestId }, data: { paidBy: realUserId } });
+  await tx.recurringExpense.updateMany({ where: { householdId, paidBy: guestId }, data: { paidBy: realUserId } });
+
+  // Expense splits: move, or sum into the real user's existing split on the same expense.
+  const guestSplits = await tx.expenseSplit.findMany({ where: { userId: guestId } });
+  if (guestSplits.length > 0) {
+    const userSplits = await tx.expenseSplit.findMany({
+      where: { userId: realUserId, expenseId: { in: guestSplits.map((s) => s.expenseId) } },
+    });
+    const userSplitByExpense = new Map(userSplits.map((s) => [s.expenseId, s]));
+    for (const split of guestSplits) {
+      const existing = userSplitByExpense.get(split.expenseId);
+      if (existing) {
+        await tx.expenseSplit.update({
+          where: { id: existing.id },
+          data: {
+            amountOwed: existing.amountOwed.plus(split.amountOwed),
+            percent: addDecimals(existing.percent, split.percent),
+          },
+        });
+        await tx.expenseSplit.delete({ where: { id: split.id } });
+      } else {
+        await tx.expenseSplit.update({ where: { id: split.id }, data: { userId: realUserId } });
+      }
+    }
+  }
+
+  // Recurring split overrides: same move-or-sum rule.
+  const guestOverrides = await tx.recurringSplitOverride.findMany({ where: { userId: guestId } });
+  if (guestOverrides.length > 0) {
+    const userOverrides = await tx.recurringSplitOverride.findMany({
+      where: { userId: realUserId, recurringId: { in: guestOverrides.map((o) => o.recurringId) } },
+    });
+    const userOverrideByRecurring = new Map(userOverrides.map((o) => [o.recurringId, o]));
+    for (const override of guestOverrides) {
+      const existing = userOverrideByRecurring.get(override.recurringId);
+      if (existing) {
+        await tx.recurringSplitOverride.update({
+          where: { id: existing.id },
+          data: {
+            amountOwed: addDecimals(existing.amountOwed, override.amountOwed),
+            percent: addDecimals(existing.percent, override.percent),
+          },
+        });
+        await tx.recurringSplitOverride.delete({ where: { id: override.id } });
+      } else {
+        await tx.recurringSplitOverride.update({ where: { id: override.id }, data: { userId: realUserId } });
+      }
+    }
+  }
+
+  // Settlements: re-point both sides, then drop any that became self-payments.
+  await tx.settlement.updateMany({ where: { householdId, fromUserId: guestId }, data: { fromUserId: realUserId } });
+  await tx.settlement.updateMany({ where: { householdId, toUserId: guestId }, data: { toUserId: realUserId } });
+  await tx.settlement.deleteMany({ where: { householdId, fromUserId: realUserId, toUserId: realUserId } });
+
+  // Membership: hand the guest's spot over, or reuse the real user's existing one.
+  const userMembership = await tx.householdMember.findUnique({
+    where: { householdId_userId: { householdId, userId: realUserId } },
+  });
+  if (!userMembership) {
+    await tx.householdMember.update({
+      where: { id: guestMembership.id },
+      data: { userId: realUserId, claimTokenHash: null, claimTokenCreatedAt: null },
+    });
+  } else {
+    if (userMembership.leftAt !== null) {
+      await tx.householdMember.update({ where: { id: userMembership.id }, data: { leftAt: null } });
+    }
+    await tx.householdMember.delete({ where: { id: guestMembership.id } });
+  }
+
+  // Nothing references the placeholder anymore.
+  await tx.user.delete({ where: { id: guestId } });
 }
