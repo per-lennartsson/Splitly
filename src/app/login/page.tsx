@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePreAuthLocale } from "@/lib/i18n/use-locale";
 import { t } from "@/lib/i18n/t";
 import { LocaleToggle } from "@/components/locale-toggle";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Carries ?next=... (e.g. a guest claim link) through to signup; read after mount to avoid hydration mismatch.
+  const [search, setSearch] = useState("");
+  useEffect(() => setSearch(window.location.search), []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -30,9 +34,11 @@ export default function LoginPage() {
       setError(t(locale, "auth.login.error"));
       return;
     }
-    router.push("/households");
+    router.push(safeNextPath(new URLSearchParams(window.location.search).get("next")));
     router.refresh();
   }
+
+  const signupHref = `/signup${search}`;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
@@ -75,7 +81,7 @@ export default function LoginPage() {
         </form>
         <p className="mt-4 text-center text-sm text-slate-500">
           {t(locale, "auth.login.noAccount")}{" "}
-          <Link href="/signup" className="font-medium text-brand-600 hover:text-brand-700">
+          <Link href={signupHref} className="font-medium text-brand-600 hover:text-brand-700">
             {t(locale, "auth.login.signupLink")}
           </Link>
         </p>

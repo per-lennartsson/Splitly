@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePreAuthLocale } from "@/lib/i18n/use-locale";
 import { t } from "@/lib/i18n/t";
 import { LocaleToggle } from "@/components/locale-toggle";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -16,6 +17,13 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // ?next=... (e.g. a guest claim link) and ?name=... (prefill from the guest's name), read after mount.
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    setSearch(window.location.search);
+    const prefill = new URLSearchParams(window.location.search).get("name");
+    if (prefill) setName((current) => current || prefill.slice(0, 100));
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -39,10 +47,10 @@ export default function SignupPage() {
     setLoading(false);
     if (signInRes?.error) {
       setError(t(locale, "auth.signup.loginFailedAfterSignup"));
-      router.push("/login");
+      router.push(`/login${search}`);
       return;
     }
-    router.push("/households");
+    router.push(safeNextPath(new URLSearchParams(search).get("next")));
     router.refresh();
   }
 
@@ -99,7 +107,7 @@ export default function SignupPage() {
         </form>
         <p className="mt-4 text-center text-sm text-slate-500">
           {t(locale, "auth.signup.haveAccount")}{" "}
-          <Link href="/login" className="font-medium text-brand-600 hover:text-brand-700">
+          <Link href={`/login${search}`} className="font-medium text-brand-600 hover:text-brand-700">
             {t(locale, "auth.signup.loginLink")}
           </Link>
         </p>

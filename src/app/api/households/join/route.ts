@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { listSelfClaimableGuests } from "@/lib/guest-claim-service";
 
 const joinSchema = z.object({ inviteCode: z.string().min(1) });
 
@@ -46,5 +47,8 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({ household, membership }, { status: 201 });
+  // Event groups may already have the joiner as a guest; the client offers "Are you one of these?".
+  const guests = await listSelfClaimableGuests(household.id, session.user.id);
+
+  return NextResponse.json({ household, membership, guests }, { status: 201 });
 }
