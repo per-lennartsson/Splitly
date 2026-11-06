@@ -2,9 +2,27 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 
+// Link previews (iMessage, Slack, WhatsApp…) read these Open Graph tags; image URLs
+// must be absolute, so metadataBase falls back to the production domain if
+// NEXTAUTH_URL isn't set when a page is prerendered at build time.
+const siteUrl = process.env.NEXTAUTH_URL?.startsWith("https://")
+  ? process.env.NEXTAUTH_URL
+  : "https://splitly.per-lennartsson.se";
+
+const description = "Dela utgifter med hushållet, resesällskapet eller kompisgänget – och gör upp enkelt.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: "Splitly",
-  description: "Track shared expenses with your household or group",
+  description,
+  openGraph: {
+    type: "website",
+    siteName: "Splitly",
+    title: "Splitly",
+    description,
+    locale: "sv_SE",
+  },
+  twitter: { card: "summary_large_image", title: "Splitly", description },
 };
 
 export default function RootLayout({
